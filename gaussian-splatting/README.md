@@ -1,27 +1,56 @@
 # Gaussian Splatting Demo
 
-A 3D Gaussian Splatting renderer built with [Spark](https://github.com/sparkjsdev/spark) and Three.js, running entirely in the browser with no build step.
+A 3D Gaussian Splatting renderer built with [Spark](https://github.com/sparkjsdev/spark) and Three.js, running entirely in the browser.
 
-## Running locally
+Two versions are available:
+- **`index.html`** — zero-dependency, CDN-based, single file
+- **`src/pages/index.astro`** — Astro version, npm-based, Vite-bundled
 
-Clone the repo and navigate to this folder:
+---
+
+## Option A — Plain HTML (no build step)
+
+Just serve the file with any static server:
 
 ```bash
 git clone https://github.com/AndrewAlva/Spirits-Playground.git
 cd Spirits-Playground/gaussian-splatting
-```
 
-Serve it with any static file server — required because the demo uses ES module import maps:
-
-```bash
-# Option A: Node.js
+# Node.js
 npx serve .
 
-# Option B: Python
+# or Python
 python3 -m http.server 8080
 ```
 
-Then open [http://localhost:8080](http://localhost:8080) in your browser.
+Open [http://localhost:8080](http://localhost:8080).
+
+You can also deploy `index.html` directly to any static host (Netlify drag-and-drop, GitHub Pages, Vercel, etc.) with no configuration — all dependencies load from CDN.
+
+---
+
+## Option B — Astro (npm)
+
+```bash
+git clone https://github.com/AndrewAlva/Spirits-Playground.git
+cd Spirits-Playground/gaussian-splatting
+
+npm install
+npm run dev
+```
+
+Open [http://localhost:4321](http://localhost:4321).
+
+### Build for production
+
+```bash
+npm run build   # outputs to dist/
+npm run preview # preview the production build locally
+```
+
+The `dist/` folder is a fully static site — deploy it anywhere.
+
+---
 
 ## Controls
 
@@ -34,6 +63,7 @@ Then open [http://localhost:8080](http://localhost:8080) in your browser.
 ## How it works
 
 - **Spark** (`@sparkjsdev/spark`) handles splat loading, per-frame depth sorting, and compositing on top of Three.js
-- The scene loads a `.spz` splat file (Spark's compressed Gaussian Splatting format) directly from Spark's CDN
-- `OrbitControls` from Three.js provides the camera navigation
-- All dependencies are loaded via CDN import maps — no `npm install` needed
+- The scene loads a `.spz` splat file (Spark's compressed Gaussian Splatting format) from Spark's CDN
+- `OrbitControls` from Three.js provides camera navigation
+- In the plain HTML version, all dependencies are loaded via a CDN import map
+- In the Astro version, Vite bundles the npm packages at build time

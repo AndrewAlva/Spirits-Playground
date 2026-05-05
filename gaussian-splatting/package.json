@@ -1,0 +1,14 @@
+{
+  "name": "gaussian-splatting",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@sparkjsdev/spark": "^2.0.0",
+    "astro": "^5.0.0",
+    "three": "^0.180.0"
+  }
+}
