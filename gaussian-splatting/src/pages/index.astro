@@ -101,13 +101,16 @@
     controls.target.set(0, 0, -1);
     controls.update();
 
-    const splat = new SplatMesh({ url: "https://sparkjs.dev/assets/splats/butterfly.spz" });
+    // const splat = new SplatMesh({ url: "https://sparkjs.dev/assets/splats/butterfly.spz" });
+    const splat = new SplatMesh({ url: "/splats/Ice_Water.sog" });
     splat.position.set(0, 0, -1);
     scene.add(splat);
 
     splat.addEventListener("load", () => {
+      alert("Splat loaded!");
       document.getElementById("loading")!.classList.add("hidden");
     });
+    document.getElementById("loading")!.classList.add("hidden");
 
     window.addEventListener("resize", () => {
       camera.aspect = innerWidth / innerHeight;
