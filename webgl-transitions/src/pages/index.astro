@@ -9,7 +9,7 @@ import '../styles/global.css';
     <title>WebGL Transitions</title>
   </head>
   <body>
-    <!-- WebGL canvas lives here; scene.js renders into it and exposes it globally -->
+    <!-- WebGL canvas — SceneManager renders the active scene into this -->
     <canvas id="webgl-canvas"></canvas>
 
     <main class="scroll-container">
@@ -30,7 +30,7 @@ import '../styles/global.css';
     </main>
 
     <script>
-      import '../scripts/scene.js';
+      import '../scripts/SceneManager.js';
     </script>
   </body>
 </html>
