@@ -1,0 +1,36 @@
+---
+import '../styles/global.css';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WebGL Transitions</title>
+  </head>
+  <body>
+    <!-- WebGL canvas lives here; scene.js renders into it and exposes it globally -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <main class="scroll-container">
+      <section class="panel">
+        <span class="panel__label">Scene 01</span>
+        <h2 class="panel__title">Intro</h2>
+      </section>
+
+      <section class="panel">
+        <span class="panel__label">Scene 02</span>
+        <h2 class="panel__title">Transform</h2>
+      </section>
+
+      <section class="panel">
+        <span class="panel__label">Scene 03</span>
+        <h2 class="panel__title">Outro</h2>
+      </section>
+    </main>
+
+    <script>
+      import '../scripts/scene.js';
+    </script>
+  </body>
+</html>
