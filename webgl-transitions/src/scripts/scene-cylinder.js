@@ -26,7 +26,7 @@ export function init(renderer) {
   camera.position.z = 5;
 
   // --- Background quad (screen-space, always behind) ---
-  const bgTexture = new THREE.TextureLoader().load('https://picsum.photos/seed/cylinder/1920/1080');
+  const bgTexture = new THREE.TextureLoader().load('/textures/scene3.png');
   bgTexture.colorSpace = THREE.SRGBColorSpace;
 
   const bgMaterial = new THREE.ShaderMaterial({
