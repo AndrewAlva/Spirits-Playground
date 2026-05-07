@@ -14,8 +14,6 @@ const canvas = document.getElementById('webgl-canvas');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-// autoClear off — each scene's tick handles clear order (bg quad first, then mesh)
-renderer.autoClear = false;
 
 const clock = new THREE.Clock();
 
