@@ -33,7 +33,7 @@ function switchTo(name) {
   }
 
   activeModule = SCENES[name];
-  activeState = activeModule.init();
+  activeState = activeModule.init(renderer);
   console.log(`SceneManager: switched to "${name}"`);
 }
 

@@ -1,9 +1,10 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // Full-screen background quad rendered behind the main scene mesh.
 // Each call to init() creates isolated Three.js state; dispose() frees it.
 
-export function init() {
+export function init(renderer) {
   // --- Background (full-screen quad with texture) ---
   const bgScene = new THREE.Scene();
   const bgCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -42,15 +43,20 @@ export function init() {
   fillLight.position.set(-4, -2, 3);
   scene.add(fillLight);
 
-  return { bgScene, bgCamera, scene, camera, mesh, geometry, material, bgTexture };
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 2.0;
+
+  return { bgScene, bgCamera, scene, camera, controls, mesh, geometry, material, bgTexture };
 }
 
 export function tick(state, renderer, t) {
-  const { bgScene, bgCamera, scene, camera, mesh } = state;
+  const { bgScene, bgCamera, scene, camera, controls, mesh } = state;
 
-  mesh.rotation.x = t * 0.3;
-  mesh.rotation.y = t * 0.5;
   mesh.position.y = Math.sin(t * 1.1) * 0.4;
+  controls.update();
 
   renderer.clear();
   renderer.render(bgScene, bgCamera);
@@ -58,6 +64,7 @@ export function tick(state, renderer, t) {
 }
 
 export function dispose(state) {
+  state.controls.dispose();
   state.geometry.dispose();
   state.material.dispose();
   state.bgTexture.dispose();
