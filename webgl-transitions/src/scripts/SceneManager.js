@@ -56,10 +56,12 @@ const COMP_FRAG = /* glsl */`
   void main() {
     vec4 colorFrom = texture2D(uFrom, vUv);
     vec4 colorTo   = texture2D(uTo,   vUv);
-    // Each pixel's threshold is its grayscale value in the mask.
-    // Black pixels (mask ≈ 0) cross over first; white pixels cross over last.
     float mask = texture2D(uLevelMask, vUv).r;
-    float edge = smoothstep(uProgress - uEdge, uProgress + uEdge, mask);
+    // Stretch the threshold so it sweeps from below 0 to above 1.
+    // At uProgress=0 the window is entirely below the mask range → edge=1 everywhere (100% from).
+    // At uProgress=1 the window is entirely above the mask range → edge=0 everywhere (100% to).
+    float p    = mix(-uEdge, 1.0 + uEdge, uProgress);
+    float edge = smoothstep(p - uEdge, p + uEdge, mask);
     gl_FragColor = mix(colorTo, colorFrom, edge);
   }
 `;
