@@ -69,10 +69,11 @@ export function init(renderer) {
   return { scene, camera, controls, mesh, geometry, material, bgMaterial, bgTexture };
 }
 
-export function tick(state, renderer, t) {
+export function tick(state, renderer, t, rt) {
   const { scene, camera, controls, mesh } = state;
   mesh.position.y = Math.sin(t * 1.1) * 0.4;
   controls.update();
+  renderer.setRenderTarget(rt);
   renderer.render(scene, camera);
 }
 
