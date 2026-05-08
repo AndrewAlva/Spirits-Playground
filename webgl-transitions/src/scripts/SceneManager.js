@@ -3,6 +3,7 @@ import * as CubeScene        from './scene-cube.js';
 import * as TetrahedronScene from './scene-tetrahedron.js';
 import * as CylinderScene    from './scene-cylinder.js';
 import { scroll }            from './scroll.js';
+import                           './debug.js';
 
 // ─── Renderer ────────────────────────────────────────────────────────────────
 
