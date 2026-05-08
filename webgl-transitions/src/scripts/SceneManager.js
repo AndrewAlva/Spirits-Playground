@@ -66,7 +66,7 @@ const COMP_FRAG = /* glsl */`
   }
 `;
 
-const levelMask = new THREE.TextureLoader().load('/textures/levels1.jpg');
+const levelMask = new THREE.TextureLoader().load('/textures/masks/levels1.jpg');
 levelMask.wrapS = THREE.RepeatWrapping;
 levelMask.wrapT = THREE.RepeatWrapping;
 
