@@ -27,7 +27,7 @@ export function init(renderer) {
 
   // --- Background quad (screen-space, always behind) ---
   const bgTexture = new THREE.TextureLoader().load('/textures/scene1.png');
-  bgTexture.colorSpace = THREE.SRGBColorSpace;
+  // bgTexture.colorSpace = THREE.SRGBColorSpace;
 
   const bgMaterial = new THREE.ShaderMaterial({
     uniforms: { uTexture: { value: bgTexture } },
