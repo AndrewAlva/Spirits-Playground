@@ -47,19 +47,33 @@ const COMP_VERT = /* glsl */`
 const COMP_FRAG = /* glsl */`
   uniform sampler2D uFrom;
   uniform sampler2D uTo;
+  uniform sampler2D uLevelMask;
   uniform float uProgress;
+  // Half-width of the feather edge in mask-value space.
+  // 0.05 = 10% total blend band around the threshold.
+  uniform float uEdge;
   varying vec2 vUv;
   void main() {
     vec4 colorFrom = texture2D(uFrom, vUv);
     vec4 colorTo   = texture2D(uTo,   vUv);
-    gl_FragColor   = mix(colorFrom, colorTo, smoothstep(0.0, 1.0, uProgress));
+    // Each pixel's threshold is its grayscale value in the mask.
+    // Black pixels (mask ≈ 0) cross over first; white pixels cross over last.
+    float mask = texture2D(uLevelMask, vUv).r;
+    float edge = smoothstep(uProgress - uEdge, uProgress + uEdge, mask);
+    gl_FragColor = mix(colorTo, colorFrom, edge);
   }
 `;
 
+const levelMask = new THREE.TextureLoader().load('/textures/levels1.jpg');
+levelMask.wrapS = THREE.RepeatWrapping;
+levelMask.wrapT = THREE.RepeatWrapping;
+
 const compUniforms = {
-  uFrom:     { value: rts['cube'].texture },
-  uTo:       { value: rts['tetrahedron'].texture },
-  uProgress: { value: 0.0 },
+  uFrom:      { value: rts['cube'].texture },
+  uTo:        { value: rts['tetrahedron'].texture },
+  uLevelMask: { value: levelMask },
+  uProgress:  { value: 0.0 },
+  uEdge:      { value: 0.05 },
 };
 
 const compScene  = new THREE.Scene();
