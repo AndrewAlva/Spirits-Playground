@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Roots Texture</title>
+  <style>
+    * { margin: 0; padding: 0; }
+    body { overflow: hidden; background: #fff; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.4/p5.min.js"></script>
+</head>
+<body>
+<script>
+// ── Tweakable parameters ──────────────────────────────────────────────────────
+const SPEED       = 4;      // pixels per frame
+const SQ_SIZE     = 20;     // square side length in pixels
+const NOISE_SCALE = 0.008;  // how fast we traverse noise space — lower = smoother curves
+const MAX_STEER   = 0.045;  // max direction change per frame (radians)
+const LEAN        = 0.7;    // how much the square tilts into its steering direction (0–1+)
+const DOWN_BIAS   = 0.015;  // strength of the pull back toward straight-down
+const BG_COLOR    = 255;    // background brightness (255 = white)
+const SQ_COLOR    = 0;      // square fill color (0 = black)
+// ─────────────────────────────────────────────────────────────────────────────
+
+let px, py;  // current position
+let dir;     // movement direction in radians (HALF_PI = straight down)
+let nt;      // offset into the Perlin noise field
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+  background(BG_COLOR);
+  resetRunner();
+}
+
+function resetRunner() {
+  px  = width / 2;
+  py  = 0;
+  dir = HALF_PI;        // start pointing straight down
+  nt  = random(1000);   // random noise starting point so each pass looks different
+}
+
+function draw() {
+  // Sample Perlin noise and convert to a steering nudge
+  let steer = map(noise(nt), 0, 1, -MAX_STEER, MAX_STEER);
+  dir += steer;
+  dir  = lerp(dir, HALF_PI, DOWN_BIAS);  // gently bias back toward vertical
+  nt  += NOISE_SCALE;
+
+  // Advance position along current direction
+  px += cos(dir) * SPEED;
+  py += sin(dir) * SPEED;
+
+  // Draw the square
+  push();
+    translate(px, py);
+    // QUARTER_PI gives the base 45° "diamond" orientation (tip pointing down).
+    // The lean term tilts the square into the steering direction:
+    //   going right → dir < HALF_PI → (HALF_PI - dir) > 0 → clockwise lean ✓
+    //   going left  → dir > HALF_PI → (HALF_PI - dir) < 0 → counter-clockwise lean ✓
+    rotate(QUARTER_PI + (HALF_PI - dir) * LEAN);
+    fill(SQ_COLOR);
+    noStroke();
+    rectMode(CENTER);
+    rect(0, 0, SQ_SIZE, SQ_SIZE);
+  pop();
+
+  // Return to top-centre whenever the square exits the canvas
+  if (px < -SQ_SIZE || px > width + SQ_SIZE || py > height + SQ_SIZE) {
+    resetRunner();
+  }
+}
+</script>
+</body>
+</html>
