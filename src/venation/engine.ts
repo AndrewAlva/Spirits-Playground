@@ -32,6 +32,7 @@ export class VenationEngine {
   // Reusable scratch objects so iterate() allocates as little as possible.
   private _v = new THREE.Vector3()
   private _dir = new THREE.Vector3()
+  private _bias = new THREE.Vector3()
   private _near: number[] = []
 
   constructor(params: EngineParams = { ...DEFAULT_CONFIG }) {
@@ -81,10 +82,38 @@ export class VenationEngine {
    * terminates. Also compacts dead attractors occasionally to bound memory.
    */
   replenishAttractors(frontier: THREE.Vector3) {
-    const need = this.params.maxAttractors - this.aliveAttractors
-    if (need > 0) this.scatter(frontier, need, this.params.replenishRadius)
+    const { maxAttractors, replenishRadius, replenishAhead, cullBehind } = this.params
 
-    if (this.attractors.length > this.params.maxAttractors * 4) {
+    // Resolve the (optional) bias direction once.
+    this._bias.set(this.params.biasX, this.params.biasY, this.params.biasZ)
+    const hasBias = this.params.biasStrength > 0 && this._bias.lengthSq() > 1e-9
+    if (hasBias) this._bias.normalize()
+
+    // Abandon attractors the frontier has already swept past — otherwise they
+    // stay "alive" forever behind the growth, keep the count above the
+    // replenish threshold, and starve the advancing front (which is exactly
+    // what made new branches stub out in place).
+    if (hasBias) {
+      const front = frontier.dot(this._bias)
+      for (const a of this.attractors) {
+        if (!a.alive) continue
+        if (front - a.position.dot(this._bias) > cullBehind) {
+          a.alive = false
+          this.aliveAttractors--
+        }
+      }
+    }
+
+    // Seed fresh attractors ahead of the frontier (along the bias direction) so
+    // there's always untouched territory to grow into.
+    const need = maxAttractors - this.aliveAttractors
+    if (need > 0) {
+      const center = this._v.copy(frontier)
+      if (hasBias) center.addScaledVector(this._bias, replenishAhead)
+      this.scatter(center, need, replenishRadius)
+    }
+
+    if (this.attractors.length > maxAttractors * 4) {
       this.attractors = this.attractors.filter((a) => a.alive)
     }
   }
@@ -206,6 +235,20 @@ export class VenationEngine {
   private grow(tip: VeinNode, dir: THREE.Vector3): VeinNode {
     const noise = this.params.branchAngleNoise
     this._dir.copy(dir).normalize()
+
+    // Blend toward the bias direction (tropism): pulls every step the same way
+    // so strands flow steadily instead of curling into a spiral.
+    const bias = this.params.biasStrength
+    if (bias > 0) {
+      this._bias.set(this.params.biasX, this.params.biasY, this.params.biasZ)
+      if (this._bias.lengthSq() > 1e-9) {
+        this._bias.normalize()
+        this._dir.multiplyScalar(1 - bias).addScaledVector(this._bias, bias)
+        if (this._dir.lengthSq() < 1e-9) this._dir.copy(this._bias) // opposed → follow bias
+      }
+    }
+
+    this._dir.normalize()
     this._dir.x += (Math.random() - 0.5) * noise
     this._dir.y += (Math.random() - 0.5) * noise
     this._dir.z += (Math.random() - 0.5) * noise

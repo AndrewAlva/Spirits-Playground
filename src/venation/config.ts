@@ -23,12 +23,19 @@ export interface EngineParams {
   initialAttractors: number // attractors scattered around the seed on reset
   initialRadius: number // disk radius for the initial scatter
   planeZJitter: number // initial out-of-plane spread of attractors
+
+  // Directional growth (tropism). Blends a constant bias direction into every
+  // step so growth flows steadily one way instead of curling, and keeps the
+  // attractor cloud marching ahead of the frontier instead of piling up.
+  biasStrength: number // 0 = pure space colonization, 1 = fully directional
+  biasX: number // bias direction (defaults point straight down)
+  biasY: number
+  biasZ: number
+  replenishAhead: number // distance ahead of the frontier to seed new attractors
+  cullBehind: number // abandon attractors this far behind the frontier
 }
 
 export interface VenationConfig extends EngineParams {
-  // Renderer-driven attractor replenishment threshold.
-  replenishBelow: number
-
   // Veins / material.
   tipColor: string // hue of the growing tip (#00ffcc bright cyan)
   rootColor: string // hue of the root (#00aa44 deep green)
@@ -71,7 +78,12 @@ export const DEFAULT_CONFIG: VenationConfig = {
   initialRadius: 1.25,
   planeZJitter: 0.06,
 
-  replenishBelow: 250,
+  biasStrength: 0.45,
+  biasX: 0,
+  biasY: -1, // flow downward by default
+  biasZ: 0,
+  replenishAhead: 2.0,
+  cullBehind: 2.0,
 
   tipColor: '#00ffcc',
   rootColor: '#00aa44',
@@ -80,8 +92,8 @@ export const DEFAULT_CONFIG: VenationConfig = {
   rootWidth: 0.018,
   additiveBlending: true,
 
-  cameraPositionLerp: 0.012,
-  cameraLookLerp: 0.018,
+  cameraPositionLerp: 0.05, // fast enough to keep the descending front framed
+  cameraLookLerp: 0.08,
   cameraOffsetZ: 2.2,
 
   bloomIntensity: 1.4,

@@ -198,7 +198,9 @@ export default function VenationRenderer({ frontier }: Props) {
       c.multiplyScalar(1 / recent.current.length)
     }
 
-    if (e.attractorCount < config.replenishBelow) e.replenishAttractors(frontier.current)
+    // Cull-behind + spawn-ahead every frame keeps the attractor cloud marching
+    // with the frontier (the call self-regulates via the maxAttractors target).
+    e.replenishAttractors(frontier.current)
 
     if (added) {
       setBranches((prev) => {

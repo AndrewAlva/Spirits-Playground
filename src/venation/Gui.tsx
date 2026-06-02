@@ -108,19 +108,58 @@ export default function Gui() {
       step: 0.1,
       onChange: (v: number) => (config.replenishRadius = v),
     },
-    replenishBelow: {
-      value: DEFAULT_CONFIG.replenishBelow,
-      min: 0,
-      max: 2000,
-      step: 10,
-      onChange: (v: number) => (config.replenishBelow = v),
-    },
     candidateLimit: {
       value: DEFAULT_CONFIG.candidateLimit,
       min: 50,
       max: 5000,
       step: 50,
       onChange: (v: number) => (config.candidateLimit = v),
+    },
+  })
+
+  // ── Direction (tropism) ──────────────────────────────────────────────────────
+  useControls('Direction', {
+    biasStrength: {
+      value: DEFAULT_CONFIG.biasStrength,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      onChange: (v: number) => (config.biasStrength = v),
+    },
+    biasX: {
+      value: DEFAULT_CONFIG.biasX,
+      min: -1,
+      max: 1,
+      step: 0.05,
+      onChange: (v: number) => (config.biasX = v),
+    },
+    biasY: {
+      value: DEFAULT_CONFIG.biasY,
+      min: -1,
+      max: 1,
+      step: 0.05,
+      onChange: (v: number) => (config.biasY = v),
+    },
+    biasZ: {
+      value: DEFAULT_CONFIG.biasZ,
+      min: -1,
+      max: 1,
+      step: 0.05,
+      onChange: (v: number) => (config.biasZ = v),
+    },
+    replenishAhead: {
+      value: DEFAULT_CONFIG.replenishAhead,
+      min: 0,
+      max: 6,
+      step: 0.1,
+      onChange: (v: number) => (config.replenishAhead = v),
+    },
+    cullBehind: {
+      value: DEFAULT_CONFIG.cullBehind,
+      min: 0.2,
+      max: 8,
+      step: 0.1,
+      onChange: (v: number) => (config.cullBehind = v),
     },
   })
 
