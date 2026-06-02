@@ -1,30 +1,6 @@
 import * as THREE from 'three'
 import type { Attractor, VeinNode } from './types'
-
-// ────────────────────────────────────────────────────────────────────────────
-// Tunable algorithm parameters
-// ────────────────────────────────────────────────────────────────────────────
-export const INFLUENCE_RADIUS = 0.8 // attractors influence nodes within this distance
-export const KILL_RADIUS = 0.12 // attractors killed when a node enters this distance
-export const SEGMENT_LENGTH = 0.04 // step size per growth iteration
-export const MAX_ATTRACTORS = 600 // soft cap; replenish when below threshold
-export const REPLENISH_RADIUS = 2.5 // radius around growth frontier to spawn attractors
-export const Z_WOBBLE = 0.015 // max Z displacement per step (keeps it quasi-flat)
-export const BRANCH_ANGLE_NOISE = 0.18 // radians of random deviation per step
-
-// Secondary tunables (not part of the public parameter block).
-const INITIAL_ATTRACTORS = 350 // attractors scattered around the seed on reset
-const INITIAL_RADIUS = 1.25 // disk radius for the initial scatter
-const PLANE_Z_JITTER = 0.06 // initial out-of-plane spread of attractors
-const MAX_GROWTH_PER_TICK = 3 // new nodes emitted per iterate() (visual legibility)
-const CANDIDATE_LIMIT = 600 // most-recent tips examined per tick (bounds cost)
-const FORK_SPREAD = 0.9 // radians; angular spread above which a tip may fork
-const MIN_FORK_ATTRACTORS = 5 // minimum influencers before a fork is considered
-const FORK_PROBABILITY = 0.5 // chance an eligible tip actually forks
-
-// Spatial-index cell size. Equal to INFLUENCE_RADIUS so a query sphere of that
-// radius is covered by the 3×3×3 neighbourhood of cells.
-const CELL = INFLUENCE_RADIUS
+import { DEFAULT_CONFIG, type EngineParams } from './config'
 
 export interface IterationResult {
   newNodes: VeinNode[]
@@ -36,10 +12,16 @@ export interface IterationResult {
  * graph (nodes + parent links) and the attractor cloud. A uniform-grid spatial
  * index over the attractors keeps every lookup local (no O(n²) scans), which is
  * what makes this viable on mobile.
+ *
+ * All tunables live on the injected `params` object (defaulting to
+ * DEFAULT_CONFIG). The renderer passes the live `config` singleton so the leva
+ * GUI can retune growth on the fly — the engine simply reads the latest values
+ * each iterate().
  */
 export class VenationEngine {
   attractors: Attractor[] = []
   nodes: VeinNode[] = []
+  params: EngineParams
 
   private childCount: number[] = []
   private aliveAttractors = 0
@@ -52,6 +34,17 @@ export class VenationEngine {
   private _dir = new THREE.Vector3()
   private _near: number[] = []
 
+  constructor(params: EngineParams = { ...DEFAULT_CONFIG }) {
+    this.params = params
+  }
+
+  // Spatial-index cell size. Tied to the influence radius so a query sphere of
+  // that radius is covered by the 3×3×3 neighbourhood of cells. Guarded so a
+  // GUI-set radius of 0 can never produce a divide-by-zero / NaN cell key.
+  private get cell(): number {
+    return Math.max(1e-3, this.params.influenceRadius)
+  }
+
   /** Clear all state, plant one root node at the origin, scatter attractors. */
   reset() {
     this.attractors = []
@@ -63,7 +56,7 @@ export class VenationEngine {
     this.grid.clear()
 
     this.addNode(new THREE.Vector3(0, 0, 0), null)
-    this.scatter(new THREE.Vector3(0, 0, 0), INITIAL_ATTRACTORS, INITIAL_RADIUS)
+    this.scatter(new THREE.Vector3(0, 0, 0), this.params.initialAttractors, this.params.initialRadius)
   }
 
   get attractorCount(): number {
@@ -88,10 +81,10 @@ export class VenationEngine {
    * terminates. Also compacts dead attractors occasionally to bound memory.
    */
   replenishAttractors(frontier: THREE.Vector3) {
-    const need = MAX_ATTRACTORS - this.aliveAttractors
-    if (need > 0) this.scatter(frontier, need, REPLENISH_RADIUS)
+    const need = this.params.maxAttractors - this.aliveAttractors
+    if (need > 0) this.scatter(frontier, need, this.params.replenishRadius)
 
-    if (this.attractors.length > MAX_ATTRACTORS * 4) {
+    if (this.attractors.length > this.params.maxAttractors * 4) {
       this.attractors = this.attractors.filter((a) => a.alive)
     }
   }
@@ -108,10 +101,11 @@ export class VenationEngine {
     // counted in emitted nodes (not tips) so the renderer can consume every
     // node returned and stay perfectly in sync. Bounding the examined count
     // keeps the per-frame cost flat even as the node graph grows large.
+    const { maxGrowthPerTick, candidateLimit, influenceRadius } = this.params
     let examined = 0
     for (
       let i = this.nodes.length - 1;
-      i >= 0 && newNodes.length < MAX_GROWTH_PER_TICK && examined < CANDIDATE_LIMIT;
+      i >= 0 && newNodes.length < maxGrowthPerTick && examined < candidateLimit;
       i--
     ) {
       const tip = this.nodes[i]
@@ -121,7 +115,7 @@ export class VenationEngine {
 
       // Gather this tip's influencing attractors via the spatial index and
       // accumulate the normalized average direction toward them.
-      this.queryAttractors(tip.position, INFLUENCE_RADIUS, near)
+      this.queryAttractors(tip.position, influenceRadius, near)
       const dirs: THREE.Vector3[] = []
       const mean = new THREE.Vector3()
       for (const idx of near) {
@@ -129,7 +123,7 @@ export class VenationEngine {
         if (!a.alive) continue
         const d = this._v.subVectors(a.position, tip.position)
         const dist = d.length()
-        if (dist > INFLUENCE_RADIUS || dist < 1e-6) continue
+        if (dist > influenceRadius || dist < 1e-6) continue
         const unit = d.multiplyScalar(1 / dist).clone()
         dirs.push(unit)
         mean.add(unit)
@@ -145,12 +139,12 @@ export class VenationEngine {
         if (ang > maxAngle) maxAngle = ang
       }
 
-      const roomToFork = newNodes.length + 2 <= MAX_GROWTH_PER_TICK
+      const roomToFork = newNodes.length + 2 <= maxGrowthPerTick
       if (
         roomToFork &&
-        dirs.length >= MIN_FORK_ATTRACTORS &&
-        maxAngle > FORK_SPREAD &&
-        Math.random() < FORK_PROBABILITY
+        dirs.length >= this.params.minForkAttractors &&
+        maxAngle > this.params.forkSpread &&
+        Math.random() < this.params.forkProbability
       ) {
         const perp = new THREE.Vector3(-mean.y, mean.x, 0)
         if (perp.lengthSq() < 1e-6) perp.set(0, -mean.z, mean.y)
@@ -181,12 +175,13 @@ export class VenationEngine {
     }
 
     // Kill attractors that any new node has reached.
+    const killRadius = this.params.killRadius
     for (const n of newNodes) {
-      this.queryAttractors(n.position, KILL_RADIUS, near)
+      this.queryAttractors(n.position, killRadius, near)
       for (const idx of near) {
         const a = this.attractors[idx]
         if (!a.alive) continue
-        if (a.position.distanceTo(n.position) <= KILL_RADIUS) {
+        if (a.position.distanceTo(n.position) <= killRadius) {
           a.alive = false
           this.aliveAttractors--
           killed.push(a.id)
@@ -209,16 +204,17 @@ export class VenationEngine {
 
   /** Step one new node from `tip` toward `dir`, with angle noise and Z wobble. */
   private grow(tip: VeinNode, dir: THREE.Vector3): VeinNode {
+    const noise = this.params.branchAngleNoise
     this._dir.copy(dir).normalize()
-    this._dir.x += (Math.random() - 0.5) * BRANCH_ANGLE_NOISE
-    this._dir.y += (Math.random() - 0.5) * BRANCH_ANGLE_NOISE
-    this._dir.z += (Math.random() - 0.5) * BRANCH_ANGLE_NOISE
+    this._dir.x += (Math.random() - 0.5) * noise
+    this._dir.y += (Math.random() - 0.5) * noise
+    this._dir.z += (Math.random() - 0.5) * noise
     this._dir.normalize()
 
-    const pos = tip.position.clone().addScaledVector(this._dir, SEGMENT_LENGTH)
+    const pos = tip.position.clone().addScaledVector(this._dir, this.params.segmentLength)
     // Centered wobble (spec intent: "keeps it quasi-flat"); an always-positive
-    // Math.random() * Z_WOBBLE would drift monotonically off the plane.
-    pos.z += (Math.random() - 0.5) * Z_WOBBLE
+    // Math.random() * zWobble would drift monotonically off the plane.
+    pos.z += (Math.random() - 0.5) * this.params.zWobble
 
     const child = this.addNode(pos, tip.id)
     this.childCount[tip.id]++
@@ -226,13 +222,14 @@ export class VenationEngine {
   }
 
   private scatter(center: THREE.Vector3, count: number, radius: number) {
+    const zJitter = this.params.planeZJitter
     for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2
       const r = Math.sqrt(Math.random()) * radius // uniform over the disk
       const p = new THREE.Vector3(
         center.x + Math.cos(a) * r,
         center.y + Math.sin(a) * r,
-        center.z + (Math.random() - 0.5) * PLANE_Z_JITTER,
+        center.z + (Math.random() - 0.5) * zJitter,
       )
       this.attractors.push({ id: this.nextAttractorId++, position: p, alive: true })
       this.aliveAttractors++
@@ -240,9 +237,8 @@ export class VenationEngine {
   }
 
   private cellKey(x: number, y: number, z: number): string {
-    return (
-      Math.floor(x / CELL) + ',' + Math.floor(y / CELL) + ',' + Math.floor(z / CELL)
-    )
+    const c = this.cell
+    return Math.floor(x / c) + ',' + Math.floor(y / c) + ',' + Math.floor(z / c)
   }
 
   private rebuildGrid() {
@@ -263,10 +259,11 @@ export class VenationEngine {
   /** Collect indices of attractors in cells overlapping the query sphere. */
   private queryAttractors(p: THREE.Vector3, radius: number, out: number[]) {
     out.length = 0
-    const r = Math.max(1, Math.ceil(radius / CELL))
-    const cx = Math.floor(p.x / CELL)
-    const cy = Math.floor(p.y / CELL)
-    const cz = Math.floor(p.z / CELL)
+    const c = this.cell
+    const r = Math.max(1, Math.ceil(radius / c))
+    const cx = Math.floor(p.x / c)
+    const cy = Math.floor(p.y / c)
+    const cz = Math.floor(p.z / c)
     for (let dx = -r; dx <= r; dx++) {
       for (let dy = -r; dy <= r; dy++) {
         for (let dz = -r; dz <= r; dz++) {

@@ -13,19 +13,35 @@ Stack: Vite + React + TypeScript + Tailwind + Three.js + `@react-three/fiber` +
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173
+npm run dev      # http://localhost:5173  (add ?gui for the controls)
 npm run build    # type-check + production bundle
 ```
+
+### Live controls — `?gui`
+
+Append `?gui` to the URL (e.g. `http://localhost:5173/?gui`) to reveal a
+[leva](https://github.com/pmndrs/leva) panel that tweaks the experiment on the
+fly: growth (influence/kill radius, segment length, angle noise, Z wobble,
+nodes per tick), forking, attractors, seeding (+ a **Reset** button), vein
+colors/emissive/widths/blending, camera drift, and bloom/exposure. Without
+`?gui` the panel stays hidden.
+
+All controls write into a single live `config` singleton (`config.ts`) that the
+engine, camera, materials, and post-FX read each frame — no React re-renders on
+the hot path. Color/width edits and resets are picked up via version counters
+the renderer watches.
 
 ### Layout
 
 ```
 src/venation/
+  config.ts            # Live, mutable parameter singleton (GUI writes here)
   engine.ts            # Pure-TS space colonization engine (grid-indexed)
   BranchLine.tsx       # One meshline strand (HDR gradient + width taper)
   VenationRenderer.tsx # R3F component mapping the node graph → strands
   CameraController.tsx # Cinematic follow camera
   VenationScene.tsx    # Canvas + Bloom postprocessing shell
+  Gui.tsx              # leva control panel, gated behind ?gui
   types.ts             # Shared types
 ```
 

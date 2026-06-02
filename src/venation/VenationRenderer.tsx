@@ -2,13 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { VenationEngine } from './engine'
+import { config } from './config'
 import BranchLine, {
   MAX_POINTS_PER_BRANCH,
   type BranchLineHandle,
 } from './BranchLine'
 
 const MAX_BRANCHES = 120 // hard cap on live strands; oldest evicted past this
-const REPLENISH_BELOW = 250 // top up attractors once the cloud thins out
 const NODE_POS_CAP = 5000 // bound the parent-position cache for infinite runs
 const NODE_POS_TRIM = 2500 // entries kept after a trim
 
@@ -29,7 +29,7 @@ interface Props {
  */
 export default function VenationRenderer({ frontier }: Props) {
   const engineRef = useRef<VenationEngine | null>(null)
-  if (!engineRef.current) engineRef.current = new VenationEngine()
+  if (!engineRef.current) engineRef.current = new VenationEngine(config)
 
   const [branches, setBranches] = useState<BranchState[]>([])
 
@@ -42,6 +42,11 @@ export default function VenationRenderer({ frontier }: Props) {
   const refCbCache = useRef(new Map<number, (h: BranchLineHandle | null) => void>())
   const nextBranchId = useRef(0)
   const recent = useRef<THREE.Vector3[]>([]) // last few nodes, for the frontier
+
+  // Last-seen GUI counters, so we only act when the user actually edits.
+  const lastVisual = useRef(config.visualVersion)
+  const lastWidth = useRef(config.widthVersion)
+  const lastReset = useRef(config.resetVersion)
 
   const registerHandle = useCallback((id: number, h: BranchLineHandle | null) => {
     if (h) {
@@ -70,8 +75,8 @@ export default function VenationRenderer({ frontier }: Props) {
     [registerHandle],
   )
 
-  // Initialize the engine and seed the root node.
-  useEffect(() => {
+  // Clear all render-side state and re-seed the engine from a single root.
+  const resetAll = useCallback(() => {
     const e = engineRef.current!
     e.reset()
     handles.current.clear()
@@ -89,8 +94,12 @@ export default function VenationRenderer({ frontier }: Props) {
       frontier.current.copy(root.position)
     }
     setBranches([])
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [frontier])
+
+  // Initialize on mount.
+  useEffect(() => {
+    resetAll()
+  }, [resetAll])
 
   // Append to a live strand, buffering if it hasn't mounted yet.
   const appendToBranch = (branchId: number, p: THREE.Vector3) => {
@@ -110,6 +119,22 @@ export default function VenationRenderer({ frontier }: Props) {
 
   useFrame(() => {
     const e = engineRef.current!
+
+    // Respond to GUI edits (cheap version-counter checks).
+    if (config.resetVersion !== lastReset.current) {
+      lastReset.current = config.resetVersion
+      resetAll()
+      return // start fresh next frame
+    }
+    if (config.visualVersion !== lastVisual.current) {
+      lastVisual.current = config.visualVersion
+      for (const h of handles.current.values()) h.applyColor()
+    }
+    if (config.widthVersion !== lastWidth.current) {
+      lastWidth.current = config.widthVersion
+      for (const h of handles.current.values()) h.applyWidth()
+    }
+
     const { newNodes } = e.iterate()
 
     // The engine already throttles itself to a few nodes per tick, so we
@@ -173,7 +198,7 @@ export default function VenationRenderer({ frontier }: Props) {
       c.multiplyScalar(1 / recent.current.length)
     }
 
-    if (e.attractorCount < REPLENISH_BELOW) e.replenishAttractors(frontier.current)
+    if (e.attractorCount < config.replenishBelow) e.replenishAttractors(frontier.current)
 
     if (added) {
       setBranches((prev) => {

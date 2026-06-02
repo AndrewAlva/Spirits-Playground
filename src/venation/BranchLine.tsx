@@ -10,6 +10,7 @@ import {
 import * as THREE from 'three'
 import { extend, useThree, type ThreeElement } from '@react-three/fiber'
 import { MeshLineGeometry, MeshLineMaterial } from 'meshline'
+import { config } from './config'
 
 // Register the pmndrs meshline classes so they're usable as JSX intrinsics.
 extend({ MeshLineGeometry, MeshLineMaterial })
@@ -24,27 +25,30 @@ declare module '@react-three/fiber' {
 /** Pre-allocated position capacity per strand (never reallocated). */
 export const MAX_POINTS_PER_BRANCH = 512
 
-const ROOT_WIDTH = 0.018
-const TIP_WIDTH = 0.006
-
 // meshline invokes the width callback with p ∈ [0,1] where p=0 is the FIRST
 // point and p=1 the LAST. We store points root-first (index 0 = root, last =
 // growing tip), so the spec's "0 = tip / 1 = root, 0.006 + p*0.012" becomes the
-// equivalent inverted form below — thick at the root, tapering to the tip.
-const widthCallback = (p: number) => TIP_WIDTH + (1 - p) * (ROOT_WIDTH - TIP_WIDTH)
+// equivalent inverted form below — thick at the root, tapering to the tip. Reads
+// live config so width tweaks apply on the next flush.
+const widthCallback = (p: number) =>
+  config.tipWidth + (1 - p) * (config.rootWidth - config.tipWidth)
 
 // pmndrs `meshline` has no per-vertex color attribute; its material instead
 // interpolates a 2-stop `gradient` along the line's `counters` (0 at the first
-// point → 1 at the last). We map that onto the spec's tip/root colors. The tip
-// stop is HDR (channel > 1.0) so Bloom latches onto the growing frontier.
-const ROOT_COLOR = new THREE.Color('#00aa44') // deep green at the root (counter 0)
-const TIP_COLOR = new THREE.Color(0, 3.0, 2.0) // HDR cyan at the tip (counter 1)
+// point → 1 at the last). We map that onto the configured tip/root colors. The
+// tip stop is pushed HDR (× tipEmissive) so Bloom latches onto the frontier.
+const reusableRoot = new THREE.Color()
+const reusableTip = new THREE.Color()
 
 export interface BranchLineHandle {
   /** Append one node to the tip end of the strand. */
   append: (x: number, y: number, z: number) => void
   /** Current number of points in the strand. */
   pointCount: () => number
+  /** Re-apply the configured colors / blending (GUI live edit). */
+  applyColor: () => void
+  /** Re-apply the configured widths to existing points (GUI live edit). */
+  applyWidth: () => void
 }
 
 interface BranchLineProps {
@@ -89,19 +93,29 @@ function BranchLineImpl(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Re-apply the configured colors + blending. Colors are uniforms and blending
+  // is render state, so this is cheap and needs no shader recompile.
+  const applyColor = () => {
+    const m = materialRef.current
+    if (!m) return
+    reusableRoot.set(config.rootColor)
+    reusableTip.set(config.tipColor).multiplyScalar(config.tipEmissive)
+    m.gradient = [reusableRoot, reusableTip]
+    m.blending = config.additiveBlending ? THREE.AdditiveBlending : THREE.NormalBlending
+  }
+
   // Configure the material imperatively (HDR gradient survives this path).
   useLayoutEffect(() => {
     const m = materialRef.current
     if (!m) return
-    m.gradient = [ROOT_COLOR, TIP_COLOR]
     m.useGradient = 1
     m.lineWidth = 1 // widthCallback supplies absolute widths
     m.transparent = true
     m.depthWrite = false // avoid overdraw sorting cost
     m.depthTest = false // strands never occlude each other over pure black
-    m.blending = THREE.AdditiveBlending // bioluminescent glow where veins overlap
     m.toneMapped = false // keep HDR intact so Bloom's threshold catches the tips
     m.resolution.set(size.width, size.height)
+    applyColor()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -131,6 +145,8 @@ function BranchLineImpl(
         flush()
       },
       pointCount: () => countRef.current,
+      applyColor,
+      applyWidth: flush, // re-runs widthCallback over the existing points
     }),
     [],
   )
