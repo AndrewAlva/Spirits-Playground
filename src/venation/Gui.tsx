@@ -161,6 +161,38 @@ export default function Gui() {
       step: 0.1,
       onChange: (v: number) => (config.cullBehind = v),
     },
+    curtainSpread: {
+      value: DEFAULT_CONFIG.curtainSpread,
+      min: 0,
+      max: 0.5,
+      step: 0.01,
+      onChange: (v: number) => (config.curtainSpread = v),
+    },
+    curtainMaxWidth: {
+      value: DEFAULT_CONFIG.curtainMaxWidth,
+      min: 1,
+      max: 30,
+      step: 0.5,
+      onChange: (v: number) => (config.curtainMaxWidth = v),
+    },
+  })
+
+  // ── Trail / fade ────────────────────────────────────────────────────────────
+  useControls('Trail', {
+    maxBranches: {
+      value: DEFAULT_CONFIG.maxBranches,
+      min: 20,
+      max: 600,
+      step: 10,
+      onChange: (v: number) => (config.maxBranches = v),
+    },
+    fadeStartFraction: {
+      value: DEFAULT_CONFIG.fadeStartFraction,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      onChange: (v: number) => (config.fadeStartFraction = v),
+    },
   })
 
   // ── Seeding (applied on Reset) ───────────────────────────────────────────────

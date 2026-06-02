@@ -33,6 +33,8 @@ export interface EngineParams {
   biasZ: number
   replenishAhead: number // distance ahead of the frontier to seed new attractors
   cullBehind: number // abandon attractors this far behind the frontier
+  curtainSpread: number // lateral half-width added per unit of descent (fan-out)
+  curtainMaxWidth: number // clamp on the curtain's lateral half-width
 }
 
 export interface VenationConfig extends EngineParams {
@@ -55,6 +57,12 @@ export interface VenationConfig extends EngineParams {
   luminanceSmoothing: number
   toneMappingExposure: number
 
+  // Trail. The live strands form a trailing window behind the front; the fade
+  // is measured as a fraction of that window so strands always reach full black
+  // exactly as they're evicted (no popping), at any growth rate.
+  maxBranches: number // live strand cap → how long the glowing trail is
+  fadeStartFraction: number // 0..1 of the window where dimming begins
+
   // Monotonic counters so imperative consumers can cheaply detect GUI edits.
   visualVersion: number // colors / blending changed
   widthVersion: number // line widths changed
@@ -69,7 +77,7 @@ export const DEFAULT_CONFIG: VenationConfig = {
   replenishRadius: 2.5,
   zWobble: 0.015,
   branchAngleNoise: 0.18,
-  maxGrowthPerTick: 3,
+  maxGrowthPerTick: 5,
   candidateLimit: 600,
   forkSpread: 0.9,
   minForkAttractors: 5,
@@ -84,6 +92,8 @@ export const DEFAULT_CONFIG: VenationConfig = {
   biasZ: 0,
   replenishAhead: 2.0,
   cullBehind: 2.0,
+  curtainSpread: 0.08,
+  curtainMaxWidth: 6.0,
 
   tipColor: '#00ffcc',
   rootColor: '#00aa44',
@@ -94,12 +104,15 @@ export const DEFAULT_CONFIG: VenationConfig = {
 
   cameraPositionLerp: 0.05, // fast enough to keep the descending front framed
   cameraLookLerp: 0.08,
-  cameraOffsetZ: 2.2,
+  cameraOffsetZ: 4.0, // zoomed out enough to see the widening curtain + fade
 
   bloomIntensity: 1.4,
   luminanceThreshold: 0.6,
   luminanceSmoothing: 0.4,
   toneMappingExposure: 1.2,
+
+  maxBranches: 150,
+  fadeStartFraction: 0.25,
 
   visualVersion: 0,
   widthVersion: 0,

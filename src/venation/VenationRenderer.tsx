@@ -8,7 +8,7 @@ import BranchLine, {
   type BranchLineHandle,
 } from './BranchLine'
 
-const MAX_BRANCHES = 120 // hard cap on live strands; oldest evicted past this
+const HARD_BRANCH_CAP = 1000 // absolute safety ceiling on live strands
 const NODE_POS_CAP = 5000 // bound the parent-position cache for infinite runs
 const NODE_POS_TRIM = 2500 // entries kept after a trim
 
@@ -37,6 +37,7 @@ export default function VenationRenderer({ frontier }: Props) {
   const handles = useRef(new Map<number, BranchLineHandle>())
   const tipToBranch = useRef(new Map<number, number>()) // engine tip nodeId → branchId
   const branchPoints = useRef(new Map<number, number>()) // branchId → point count
+  const branchTip = useRef(new Map<number, THREE.Vector3>()) // branchId → tip position (fade)
   const nodePos = useRef(new Map<number, THREE.Vector3>()) // nodeId → position
   const pending = useRef(new Map<number, number[][]>()) // points awaiting strand mount
   const refCbCache = useRef(new Map<number, (h: BranchLineHandle | null) => void>())
@@ -47,6 +48,10 @@ export default function VenationRenderer({ frontier }: Props) {
   const lastVisual = useRef(config.visualVersion)
   const lastWidth = useRef(config.widthVersion)
   const lastReset = useRef(config.resetVersion)
+
+  // Scratch + smoothed window length for the per-frame trail-fade pass.
+  const biasDir = useRef(new THREE.Vector3())
+  const fadeWindow = useRef(1)
 
   const registerHandle = useCallback((id: number, h: BranchLineHandle | null) => {
     if (h) {
@@ -82,6 +87,7 @@ export default function VenationRenderer({ frontier }: Props) {
     handles.current.clear()
     tipToBranch.current.clear()
     branchPoints.current.clear()
+    branchTip.current.clear()
     nodePos.current.clear()
     pending.current.clear()
     refCbCache.current.clear()
@@ -115,6 +121,9 @@ export default function VenationRenderer({ frontier }: Props) {
       queue.push([p.x, p.y, p.z])
     }
     branchPoints.current.set(branchId, (branchPoints.current.get(branchId) ?? 0) + 1)
+    const tip = branchTip.current.get(branchId)
+    if (tip) tip.copy(p)
+    else branchTip.current.set(branchId, p.clone())
   }
 
   useFrame(() => {
@@ -164,6 +173,7 @@ export default function VenationRenderer({ frontier }: Props) {
         const parentPos = nodePos.current.get(n.parentId!) ?? n.position
         const id = nextBranchId.current++
         branchPoints.current.set(id, 2)
+        branchTip.current.set(id, n.position.clone())
         tipToBranch.current.set(n.id, id)
         const state: BranchState = {
           id,
@@ -202,15 +212,48 @@ export default function VenationRenderer({ frontier }: Props) {
     // with the frontier (the call self-regulates via the maxAttractors target).
     e.replenishAttractors(frontier.current)
 
+    // Trail fade: dim each strand toward black by how far it sits behind the
+    // front along the bias direction, so only the leading edge glows. The fade
+    // window auto-tracks the furthest live strand (smoothed), so strands always
+    // reach full black right as they're evicted — no popping, at any growth rate.
+    {
+      const bd = biasDir.current.set(config.biasX, config.biasY, config.biasZ)
+      if (bd.lengthSq() < 1e-9) bd.set(0, -1, 0)
+      bd.normalize()
+      const frontProj = frontier.current.dot(bd)
+
+      let maxBehind = 0
+      for (const tip of branchTip.current.values()) {
+        const behind = frontProj - tip.dot(bd)
+        if (behind > maxBehind) maxBehind = behind
+      }
+      // Smooth the window so it doesn't jump when the furthest strand evicts.
+      fadeWindow.current += (maxBehind - fadeWindow.current) * 0.05
+      const win = Math.max(0.5, fadeWindow.current)
+      const a = win * config.fadeStartFraction
+      const b = Math.max(a + 1e-3, win)
+
+      for (const [id, tip] of branchTip.current) {
+        const h = handles.current.get(id)
+        if (!h) continue
+        const behind = frontProj - tip.dot(bd) // >0 ⇒ behind/above the front
+        const t = Math.min(1, Math.max(0, (behind - a) / (b - a)))
+        const fade = 1 - t * t * (3 - 2 * t) // 1 at the front → 0 once fully behind
+        h.setFade(fade)
+      }
+    }
+
     if (added) {
       setBranches((prev) => {
         let next = prev.concat(added!)
-        if (next.length > MAX_BRANCHES) {
-          const removeCount = next.length - MAX_BRANCHES
+        const cap = Math.min(HARD_BRANCH_CAP, Math.max(1, Math.floor(config.maxBranches)))
+        if (next.length > cap) {
+          const removeCount = next.length - cap
           for (let i = 0; i < removeCount; i++) {
             const r = next[i]
             handles.current.delete(r.id)
             branchPoints.current.delete(r.id)
+            branchTip.current.delete(r.id)
             pending.current.delete(r.id)
             refCbCache.current.delete(r.id)
             for (const [k, v] of tipToBranch.current) {

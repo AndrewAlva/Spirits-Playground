@@ -33,6 +33,7 @@ export class VenationEngine {
   private _v = new THREE.Vector3()
   private _dir = new THREE.Vector3()
   private _bias = new THREE.Vector3()
+  private _perp = new THREE.Vector3()
   private _near: number[] = []
 
   constructor(params: EngineParams = { ...DEFAULT_CONFIG }) {
@@ -104,13 +105,17 @@ export class VenationEngine {
       }
     }
 
-    // Seed fresh attractors ahead of the frontier (along the bias direction) so
-    // there's always untouched territory to grow into.
+    // Seed fresh attractors ahead of the frontier so there's always untouched
+    // territory to grow into. With a bias we spawn them in a "curtain": a slab
+    // ahead along the bias whose lateral half-width grows with how far the front
+    // has descended, centered on the seed axis — so growth fans out as it falls.
     const need = maxAttractors - this.aliveAttractors
     if (need > 0) {
-      const center = this._v.copy(frontier)
-      if (hasBias) center.addScaledVector(this._bias, replenishAhead)
-      this.scatter(center, need, replenishRadius)
+      if (hasBias) {
+        this.scatterCurtain(frontier, need)
+      } else {
+        this.scatter(this._v.copy(frontier), need, replenishRadius)
+      }
     }
 
     if (this.attractors.length > maxAttractors * 4) {
@@ -274,6 +279,41 @@ export class VenationEngine {
         center.y + Math.sin(a) * r,
         center.z + (Math.random() - 0.5) * zJitter,
       )
+      this.attractors.push({ id: this.nextAttractorId++, position: p, alive: true })
+      this.aliveAttractors++
+    }
+  }
+
+  /**
+   * Scatter attractors in a descending "curtain" ahead of the frontier.
+   * Assumes `this._bias` is already set to the normalized bias direction. The
+   * lateral half-width widens with descent (clamped) and is centered on the
+   * seed axis, so the flow fans out symmetrically as it falls.
+   */
+  private scatterCurtain(frontier: THREE.Vector3, count: number) {
+    const { replenishRadius, replenishAhead, curtainSpread, curtainMaxWidth } = this.params
+    const bias = this._bias
+
+    // In-plane axis perpendicular to the bias (the curtain's width direction).
+    this._perp.set(-bias.y, bias.x, 0)
+    if (this._perp.lengthSq() < 1e-9) this._perp.set(1, 0, 0)
+    this._perp.normalize()
+    const perp = this._perp
+
+    // Depth the front has travelled along the bias from the origin seed.
+    const frontDepth = frontier.dot(bias)
+    const depthFallen = Math.max(0, frontDepth)
+    const lateral = Math.min(curtainMaxWidth, replenishRadius + curtainSpread * depthFallen)
+    const zJitter = this.params.planeZJitter
+
+    for (let i = 0; i < count; i++) {
+      const along = replenishAhead + (Math.random() * 2 - 1) * replenishRadius
+      const side = (Math.random() * 2 - 1) * lateral
+      // Point on the central axis at this depth, offset laterally + a little Z.
+      const p = new THREE.Vector3()
+        .addScaledVector(bias, frontDepth + along)
+        .addScaledVector(perp, side)
+      p.z += (Math.random() - 0.5) * zJitter
       this.attractors.push({ id: this.nextAttractorId++, position: p, alive: true })
       this.aliveAttractors++
     }

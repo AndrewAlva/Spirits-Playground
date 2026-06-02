@@ -37,8 +37,6 @@ const widthCallback = (p: number) =>
 // interpolates a 2-stop `gradient` along the line's `counters` (0 at the first
 // point → 1 at the last). We map that onto the configured tip/root colors. The
 // tip stop is pushed HDR (× tipEmissive) so Bloom latches onto the frontier.
-const reusableRoot = new THREE.Color()
-const reusableTip = new THREE.Color()
 
 export interface BranchLineHandle {
   /** Append one node to the tip end of the strand. */
@@ -49,6 +47,8 @@ export interface BranchLineHandle {
   applyColor: () => void
   /** Re-apply the configured widths to existing points (GUI live edit). */
   applyWidth: () => void
+  /** Set this strand's brightness 0..1 (trail fade behind the front). */
+  setFade: (f: number) => void
 }
 
 interface BranchLineProps {
@@ -63,6 +63,7 @@ function BranchLineImpl(
   const geometryRef = useRef<MeshLineGeometry>(null!)
   const materialRef = useRef<MeshLineMaterial>(null!)
   const size = useThree((s) => s.size)
+  const fadeRef = useRef(1) // 1 = full brightness, 0 = faded to black
 
   // Single pre-allocated buffer for the life of the strand. Growth writes into
   // it with a cursor; we never recreate the geometry object or this array.
@@ -93,15 +94,34 @@ function BranchLineImpl(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Re-apply the configured colors + blending. Colors are uniforms and blending
-  // is render state, so this is cheap and needs no shader recompile.
+  // Write the configured colors (scaled by the current fade) into this strand's
+  // OWN gradient uniform — mutated in place so strands never alias each other's
+  // colors, which is what lets each fade independently.
+  const pushColors = () => {
+    const m = materialRef.current
+    if (!m) return
+    const g = m.uniforms.gradient.value as THREE.Color[]
+    const fade = fadeRef.current
+    g[0].set(config.rootColor).multiplyScalar(fade)
+    g[1].set(config.tipColor).multiplyScalar(config.tipEmissive * fade)
+    m.useGradient = 1
+  }
+
+  // Re-apply colors + blending (GUI live edit). Cheap: colors are uniforms and
+  // blending is render state, so no shader recompile is needed.
   const applyColor = () => {
     const m = materialRef.current
     if (!m) return
-    reusableRoot.set(config.rootColor)
-    reusableTip.set(config.tipColor).multiplyScalar(config.tipEmissive)
-    m.gradient = [reusableRoot, reusableTip]
+    pushColors()
     m.blending = config.additiveBlending ? THREE.AdditiveBlending : THREE.NormalBlending
+  }
+
+  // Set the trail-fade brightness. Skips tiny changes to avoid needless work.
+  const setFade = (f: number) => {
+    const clamped = f < 0 ? 0 : f > 1 ? 1 : f
+    if (Math.abs(clamped - fadeRef.current) < 0.002) return
+    fadeRef.current = clamped
+    pushColors()
   }
 
   // Configure the material imperatively (HDR gradient survives this path).
@@ -147,6 +167,7 @@ function BranchLineImpl(
       pointCount: () => countRef.current,
       applyColor,
       applyWidth: flush, // re-runs widthCallback over the existing points
+      setFade,
     }),
     [],
   )
