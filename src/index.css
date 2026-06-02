@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  background: #000000;
+  overflow: hidden;
+}
+
+body {
+  /* Bioluminescent dark aesthetic: no UI chrome, pure black canvas. */
+  color-scheme: dark;
+}
