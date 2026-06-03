@@ -70,6 +70,26 @@ export interface VenationConfig extends EngineParams {
   maxBranches: number // live strand cap → how long the glowing trail is
   fadeStartFraction: number // 0..1 of the window where dimming begins
 
+  // Depth: strands are distributed across a few discrete Z planes that parallax
+  // under the descending camera.
+  depthLayers: number // number of discrete Z planes (1 = flat)
+  layerSpacing: number // Z distance between adjacent planes
+  layerJumpChance: number // chance a new strand hops to an adjacent layer
+
+  // Vein energy: bright pulses travelling along the veins toward the tips.
+  pulseIntensity: number // 0 = off; HDR brightness added at the pulse
+  pulseSpeed: number // pulses per second along a strand
+  pulseWidth: number // pulse half-width in counter units (0..1)
+  pulseCount: number // number of pulses spaced along a strand
+
+  // Hue shift over the trail: front hue rotates as strands age toward black.
+  hueShift: number // hue turns added from front (0) to fully aged (1)
+
+  // Drifting motes: faint atmospheric particles in the void.
+  motesOpacity: number // 0 = off
+  motesSize: number
+  motesDrift: number // slow drift speed
+
   // Monotonic counters so imperative consumers can cheaply detect GUI edits.
   visualVersion: number // colors / blending changed
   widthVersion: number // line widths changed
@@ -124,6 +144,21 @@ export const DEFAULT_CONFIG: VenationConfig = {
 
   maxBranches: 50,
   fadeStartFraction: 0.01,
+
+  depthLayers: 3,
+  layerSpacing: 0.4,
+  layerJumpChance: 0.25,
+
+  pulseIntensity: 1.5,
+  pulseSpeed: 0.5,
+  pulseWidth: 0.12,
+  pulseCount: 2,
+
+  hueShift: 0.15,
+
+  motesOpacity: 0.5,
+  motesSize: 0.025,
+  motesDrift: 0.05,
 
   visualVersion: 1,
   widthVersion: 0,

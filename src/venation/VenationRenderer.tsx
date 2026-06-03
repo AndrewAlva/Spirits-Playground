@@ -16,6 +16,7 @@ const NODE_POS_TRIM = 2500 // entries kept after a trim
 interface BranchState {
   id: number
   initialPoints: number[] // root-first seed, stable identity per strand
+  layerZ: number // depth-plane offset (parallax layering)
 }
 
 interface Props {
@@ -39,6 +40,8 @@ export default function VenationRenderer({ frontier }: Props) {
   const tipToBranch = useRef(new Map<number, number>()) // engine tip nodeId → branchId
   const branchPoints = useRef(new Map<number, number>()) // branchId → point count
   const branchTip = useRef(new Map<number, THREE.Vector3>()) // branchId → tip position (fade)
+  const branchLayer = useRef(new Map<number, number>()) // branchId → depth-layer index
+  const nodeBranch = useRef(new Map<number, number>()) // nodeId → its branchId (for fork inheritance)
   const nodePos = useRef(new Map<number, THREE.Vector3>()) // nodeId → position
   const pending = useRef(new Map<number, number[][]>()) // points awaiting strand mount
   const refCbCache = useRef(new Map<number, (h: BranchLineHandle | null) => void>())
@@ -92,6 +95,8 @@ export default function VenationRenderer({ frontier }: Props) {
     tipToBranch.current.clear()
     branchPoints.current.clear()
     branchTip.current.clear()
+    branchLayer.current.clear()
+    nodeBranch.current.clear()
     nodePos.current.clear()
     pending.current.clear()
     refCbCache.current.clear()
@@ -181,6 +186,7 @@ export default function VenationRenderer({ frontier }: Props) {
           appendToBranch(parentBranch!, n.position)
           tipToBranch.current.delete(n.parentId!)
           tipToBranch.current.set(n.id, parentBranch!)
+          nodeBranch.current.set(n.id, parentBranch!)
         } else {
           // Fork, root growth, or a full strand → start a new strand at the
           // parent so the fork point is shared visually.
@@ -189,8 +195,26 @@ export default function VenationRenderer({ frontier }: Props) {
           branchPoints.current.set(id, 2)
           branchTip.current.set(id, n.position.clone())
           tipToBranch.current.set(n.id, id)
+          nodeBranch.current.set(n.id, id)
+
+          // Inherit the parent strand's depth layer, occasionally hopping to an
+          // adjacent plane so the structure spreads across layers over time.
+          const layers = Math.max(1, Math.floor(config.depthLayers))
+          const parentBranchId = nodeBranch.current.get(n.parentId!)
+          const mid = Math.floor(layers / 2)
+          let layer = parentBranchId !== undefined
+            ? branchLayer.current.get(parentBranchId) ?? mid
+            : mid
+          if (layers > 1 && Math.random() < config.layerJumpChance) {
+            layer += Math.random() < 0.5 ? -1 : 1
+          }
+          layer = Math.min(layers - 1, Math.max(0, layer))
+          branchLayer.current.set(id, layer)
+          const layerZ = (layer - (layers - 1) / 2) * config.layerSpacing
+
           const state: BranchState = {
             id,
+            layerZ,
             initialPoints: [
               parentPos.x,
               parentPos.y,
@@ -223,7 +247,10 @@ export default function VenationRenderer({ frontier }: Props) {
       const it = nodePos.current.keys()
       for (let i = 0; i < drop; i++) {
         const k = it.next().value
-        if (k !== undefined) nodePos.current.delete(k)
+        if (k !== undefined) {
+          nodePos.current.delete(k)
+          nodeBranch.current.delete(k)
+        }
       }
     }
 
@@ -254,7 +281,8 @@ export default function VenationRenderer({ frontier }: Props) {
         const behind = frontProj - tip.dot(bd) // >0 ⇒ behind/above the front
         const t = Math.min(1, Math.max(0, (behind - a) / (b - a)))
         const fade = 1 - t * t * (3 - 2 * t) // 1 at the front → 0 once fully behind
-        h.setFade(fade)
+        const age = Math.min(1, Math.max(0, behind / win)) // 0 front → 1 old (hue)
+        h.setTrail(fade, age)
       }
     }
 
@@ -269,6 +297,7 @@ export default function VenationRenderer({ frontier }: Props) {
             handles.current.delete(r.id)
             branchPoints.current.delete(r.id)
             branchTip.current.delete(r.id)
+            branchLayer.current.delete(r.id)
             pending.current.delete(r.id)
             refCbCache.current.delete(r.id)
             for (const [k, v] of tipToBranch.current) {
@@ -285,7 +314,12 @@ export default function VenationRenderer({ frontier }: Props) {
   return (
     <>
       {branches.map((b) => (
-        <BranchLine key={b.id} ref={refCb(b.id)} initialPoints={b.initialPoints} />
+        <BranchLine
+          key={b.id}
+          ref={refCb(b.id)}
+          initialPoints={b.initialPoints}
+          layerZ={b.layerZ}
+        />
       ))}
     </>
   )

@@ -21,9 +21,11 @@ npm run build    # type-check + production bundle
 
 Append `?gui` to the URL (e.g. `http://localhost:5173/?gui`) to reveal a
 [leva](https://github.com/pmndrs/leva) panel that tweaks the experiment on the
-fly: growth (influence/kill radius, segment length, angle noise, Z wobble,
-nodes per tick), forking, attractors, seeding (+ a **Reset** button), vein
-colors/emissive/widths/blending, camera drift, and bloom/exposure. Without
+fly: growth (speed, influence/kill radius, segment length, angle noise, Z
+wobble, nodes per tick), forking, attractors, direction/curtain, seeding (+ a
+**Reset** button), trail length/fade, vein colors/emissive/widths/blending,
+3-axis camera offset + drift, bloom/exposure, depth (layered planes), pulses
+(flowing vein energy), hue shift over the trail, and drifting motes. Without
 `?gui` the panel stays hidden.
 
 All controls write into a single live `config` singleton (`config.ts`) that the

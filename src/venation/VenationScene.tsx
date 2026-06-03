@@ -5,8 +5,10 @@ import { Bloom, EffectComposer } from '@react-three/postprocessing'
 import type { BloomEffect } from 'postprocessing'
 import VenationRenderer from './VenationRenderer'
 import CameraController from './CameraController'
+import Motes from './Motes'
 import Gui from './Gui'
 import { config } from './config'
+import { updatePulseUniforms } from './PulseMeshLineMaterial'
 
 /**
  * Post-processing rig. Lives inside the Canvas so it can sync the live `config`
@@ -16,8 +18,9 @@ function PostFx() {
   const bloomRef = useRef<BloomEffect | null>(null)
   const gl = useThree((s) => s.gl)
 
-  useFrame(() => {
+  useFrame((state) => {
     gl.toneMappingExposure = config.toneMappingExposure
+    updatePulseUniforms(state.clock.elapsedTime, config)
     const bloom = bloomRef.current
     if (bloom) {
       bloom.intensity = config.bloomIntensity
@@ -66,6 +69,7 @@ export default function VenationScene() {
       >
         <VenationRenderer frontier={frontier} />
         <CameraController frontier={frontier} />
+        <Motes frontier={frontier} />
         <PostFx />
       </Canvas>
     </>

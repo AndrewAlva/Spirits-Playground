@@ -356,6 +356,102 @@ export default function Gui() {
     },
   })
 
+  // ── Depth (layered planes) ───────────────────────────────────────────────────
+  useControls('Depth', {
+    depthLayers: {
+      value: DEFAULT_CONFIG.depthLayers,
+      min: 1,
+      max: 9,
+      step: 1,
+      onChange: (v: number) => (config.depthLayers = v),
+    },
+    layerSpacing: {
+      value: DEFAULT_CONFIG.layerSpacing,
+      min: 0,
+      max: 2,
+      step: 0.05,
+      onChange: (v: number) => (config.layerSpacing = v),
+    },
+    layerJumpChance: {
+      value: DEFAULT_CONFIG.layerJumpChance,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      onChange: (v: number) => (config.layerJumpChance = v),
+    },
+  })
+
+  // ── Pulses (vein energy) ─────────────────────────────────────────────────────
+  useControls('Pulses', {
+    pulseIntensity: {
+      value: DEFAULT_CONFIG.pulseIntensity,
+      min: 0,
+      max: 6,
+      step: 0.1,
+      onChange: (v: number) => (config.pulseIntensity = v),
+    },
+    pulseSpeed: {
+      value: DEFAULT_CONFIG.pulseSpeed,
+      min: 0,
+      max: 3,
+      step: 0.05,
+      onChange: (v: number) => (config.pulseSpeed = v),
+    },
+    pulseCount: {
+      value: DEFAULT_CONFIG.pulseCount,
+      min: 0.5,
+      max: 8,
+      step: 0.5,
+      onChange: (v: number) => (config.pulseCount = v),
+    },
+    pulseWidth: {
+      value: DEFAULT_CONFIG.pulseWidth,
+      min: 0.01,
+      max: 0.5,
+      step: 0.01,
+      onChange: (v: number) => (config.pulseWidth = v),
+    },
+  })
+
+  // ── Color journey ────────────────────────────────────────────────────────────
+  useControls('Hue', {
+    hueShift: {
+      value: DEFAULT_CONFIG.hueShift,
+      min: -0.5,
+      max: 0.5,
+      step: 0.01,
+      onChange: (v: number) => {
+        config.hueShift = v
+        config.visualVersion++
+      },
+    },
+  })
+
+  // ── Motes (atmosphere) ───────────────────────────────────────────────────────
+  useControls('Motes', {
+    motesOpacity: {
+      value: DEFAULT_CONFIG.motesOpacity,
+      min: 0,
+      max: 1,
+      step: 0.01,
+      onChange: (v: number) => (config.motesOpacity = v),
+    },
+    motesSize: {
+      value: DEFAULT_CONFIG.motesSize,
+      min: 0.005,
+      max: 0.1,
+      step: 0.005,
+      onChange: (v: number) => (config.motesSize = v),
+    },
+    motesDrift: {
+      value: DEFAULT_CONFIG.motesDrift,
+      min: 0,
+      max: 0.5,
+      step: 0.01,
+      onChange: (v: number) => (config.motesDrift = v),
+    },
+  })
+
   // Single Leva panel; hidden unless `?gui` is present.
   return <Leva collapsed hidden={!visible} titleBar={{ title: 'Venation' }} />
 }

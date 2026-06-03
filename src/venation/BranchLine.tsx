@@ -9,16 +9,17 @@ import {
 } from 'react'
 import * as THREE from 'three'
 import { extend, useThree, type ThreeElement } from '@react-three/fiber'
-import { MeshLineGeometry, MeshLineMaterial } from 'meshline'
+import { MeshLineGeometry } from 'meshline'
 import { config } from './config'
+import { PulseMeshLineMaterial } from './PulseMeshLineMaterial'
 
-// Register the pmndrs meshline classes so they're usable as JSX intrinsics.
-extend({ MeshLineGeometry, MeshLineMaterial })
+// Register the meshline geometry + our pulse material as JSX intrinsics.
+extend({ MeshLineGeometry, PulseMeshLineMaterial })
 
 declare module '@react-three/fiber' {
   interface ThreeElements {
     meshLineGeometry: ThreeElement<typeof MeshLineGeometry>
-    meshLineMaterial: ThreeElement<typeof MeshLineMaterial>
+    pulseMeshLineMaterial: ThreeElement<typeof PulseMeshLineMaterial>
   }
 }
 
@@ -47,23 +48,30 @@ export interface BranchLineHandle {
   applyColor: () => void
   /** Re-apply the configured widths to existing points (GUI live edit). */
   applyWidth: () => void
-  /** Set this strand's brightness 0..1 (trail fade behind the front). */
-  setFade: (f: number) => void
+  /**
+   * Update the trail look: `fade` 1→0 is brightness behind the front, `age`
+   * 0→1 is how far back the strand sits (drives the hue shift).
+   */
+  setTrail: (fade: number, age: number) => void
 }
 
 interface BranchLineProps {
   /** Seed points, root-first, as a flat [x,y,z, x,y,z, ...] array. */
   initialPoints: number[]
+  /** Z offset of this strand's depth plane (parallax layering). */
+  layerZ: number
 }
 
 function BranchLineImpl(
-  { initialPoints }: BranchLineProps,
+  { initialPoints, layerZ }: BranchLineProps,
   ref: React.Ref<BranchLineHandle>,
 ) {
   const geometryRef = useRef<MeshLineGeometry>(null!)
-  const materialRef = useRef<MeshLineMaterial>(null!)
+  const materialRef = useRef<PulseMeshLineMaterial>(null!)
   const size = useThree((s) => s.size)
   const fadeRef = useRef(1) // 1 = full brightness, 0 = faded to black
+  const ageRef = useRef(0) // 0 = at the front, 1 = fully aged (hue shifted)
+  const meshPos = useMemo<[number, number, number]>(() => [0, 0, layerZ], [layerZ])
 
   // Single pre-allocated buffer for the life of the strand. Growth writes into
   // it with a cursor; we never recreate the geometry object or this array.
@@ -102,8 +110,15 @@ function BranchLineImpl(
     if (!m) return
     const g = m.uniforms.gradient.value as THREE.Color[]
     const fade = fadeRef.current
-    g[0].set(config.rootColor).multiplyScalar(fade)
-    g[1].set(config.tipColor).multiplyScalar(config.tipEmissive * fade)
+    const dh = ageRef.current * config.hueShift // hue turns added as the strand ages
+    g[0].set(config.rootColor)
+    g[1].set(config.tipColor).multiplyScalar(config.tipEmissive)
+    if (dh !== 0) {
+      g[0].offsetHSL(dh, 0, 0)
+      g[1].offsetHSL(dh, 0, 0)
+    }
+    g[0].multiplyScalar(fade)
+    g[1].multiplyScalar(fade)
     m.useGradient = 1
   }
 
@@ -116,11 +131,13 @@ function BranchLineImpl(
     m.blending = config.additiveBlending ? THREE.AdditiveBlending : THREE.NormalBlending
   }
 
-  // Set the trail-fade brightness. Skips tiny changes to avoid needless work.
-  const setFade = (f: number) => {
-    const clamped = f < 0 ? 0 : f > 1 ? 1 : f
-    if (Math.abs(clamped - fadeRef.current) < 0.002) return
-    fadeRef.current = clamped
+  // Update trail brightness + age (hue). Skips tiny changes to avoid work.
+  const setTrail = (fade: number, age: number) => {
+    const f = fade < 0 ? 0 : fade > 1 ? 1 : fade
+    const a = age < 0 ? 0 : age > 1 ? 1 : age
+    if (Math.abs(f - fadeRef.current) < 0.002 && Math.abs(a - ageRef.current) < 0.004) return
+    fadeRef.current = f
+    ageRef.current = a
     pushColors()
   }
 
@@ -167,15 +184,15 @@ function BranchLineImpl(
       pointCount: () => countRef.current,
       applyColor,
       applyWidth: flush, // re-runs widthCallback over the existing points
-      setFade,
+      setTrail,
     }),
     [],
   )
 
   return (
-    <mesh frustumCulled={false}>
+    <mesh frustumCulled={false} position={meshPos}>
       <meshLineGeometry ref={geometryRef} attach="geometry" />
-      <meshLineMaterial ref={materialRef} args={materialArgs} attach="material" />
+      <pulseMeshLineMaterial ref={materialRef} args={materialArgs} attach="material" />
     </mesh>
   )
 }
