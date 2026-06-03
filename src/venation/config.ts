@@ -77,55 +77,55 @@ export interface VenationConfig extends EngineParams {
 }
 
 export const DEFAULT_CONFIG: VenationConfig = {
-  influenceRadius: 0.8,
-  killRadius: 0.12,
-  segmentLength: 0.04,
-  maxAttractors: 600,
-  replenishRadius: 2.5,
-  zWobble: 0.015,
-  branchAngleNoise: 0.18,
+  influenceRadius: 0.67,
+  killRadius: 0.27,
+  segmentLength: 0.08,
+  maxAttractors: 3000,
+  replenishRadius: 7.0,
+  zWobble: 0.04,
+  branchAngleNoise: 1.0,
   maxGrowthPerTick: 5,
-  candidateLimit: 600,
-  forkSpread: 0.9,
-  minForkAttractors: 5,
-  forkProbability: 0.5,
+  candidateLimit: 50,
+  forkSpread: 2.77,
+  minForkAttractors: 4,
+  forkProbability: 0.46,
   initialAttractors: 350,
   initialRadius: 1.25,
-  planeZJitter: 0.06,
+  planeZJitter: 1.00,
 
-  biasStrength: 0.45,
+  biasStrength: 0.68,
   biasX: 0,
-  biasY: -1, // flow downward by default
+  biasY: -0.1, // flow downward by default
   biasZ: 0,
-  replenishAhead: 2.0,
+  replenishAhead: 6.0,
   cullBehind: 2.0,
   curtainSpread: 0.08,
   curtainMaxWidth: 6.0,
 
-  tipColor: '#00ffcc',
-  rootColor: '#00aa44',
-  tipEmissive: 3.0,
-  tipWidth: 0.006,
-  rootWidth: 0.018,
+  tipColor: '#884e17',
+  rootColor: '#ffb752',
+  tipEmissive: 2.1,
+  tipWidth: 0.001,
+  rootWidth: 0.05,
   additiveBlending: true,
 
-  growthSpeed: 30, // ticks/sec (≈ half the previous fixed 60/frame rate)
+  growthSpeed: 36, // ticks/sec (≈ half the previous fixed 60/frame rate)
 
   cameraPositionLerp: 0.05, // fast enough to keep the descending front framed
   cameraLookLerp: 0.08,
   cameraOffsetX: 0,
-  cameraOffsetY: 0,
-  cameraOffsetZ: 4.0, // zoomed out enough to see the widening curtain + fade
+  cameraOffsetY: -2.6,
+  cameraOffsetZ: 1.5, // zoomed out enough to see the widening curtain + fade
 
-  bloomIntensity: 1.4,
-  luminanceThreshold: 0.6,
-  luminanceSmoothing: 0.4,
-  toneMappingExposure: 1.2,
+  bloomIntensity: 4.55,
+  luminanceThreshold: 0.19,
+  luminanceSmoothing: 0.1,
+  toneMappingExposure: 1.15,
 
-  maxBranches: 150,
-  fadeStartFraction: 0.25,
+  maxBranches: 50,
+  fadeStartFraction: 0.01,
 
-  visualVersion: 0,
+  visualVersion: 1,
   widthVersion: 0,
   resetVersion: 0,
 }
