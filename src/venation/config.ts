@@ -46,9 +46,16 @@ export interface VenationConfig extends EngineParams {
   rootWidth: number // line width at the root
   additiveBlending: boolean // bioluminescent glow where veins overlap
 
-  // Camera.
+  // Growth rate (decoupled from frame rate). Simulation "ticks" per second;
+  // each tick advances the flow by up to maxGrowthPerTick nodes.
+  growthSpeed: number
+
+  // Camera. Offset is the camera's position relative to the branch tip
+  // (frontier) on each axis; the camera always looks at the tip.
   cameraPositionLerp: number
   cameraLookLerp: number
+  cameraOffsetX: number
+  cameraOffsetY: number
   cameraOffsetZ: number
 
   // Bloom / tone mapping.
@@ -102,8 +109,12 @@ export const DEFAULT_CONFIG: VenationConfig = {
   rootWidth: 0.018,
   additiveBlending: true,
 
+  growthSpeed: 30, // ticks/sec (≈ half the previous fixed 60/frame rate)
+
   cameraPositionLerp: 0.05, // fast enough to keep the descending front framed
   cameraLookLerp: 0.08,
+  cameraOffsetX: 0,
+  cameraOffsetY: 0,
   cameraOffsetZ: 4.0, // zoomed out enough to see the widening curtain + fade
 
   bloomIntensity: 1.4,

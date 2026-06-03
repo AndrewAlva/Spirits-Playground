@@ -9,6 +9,7 @@ import BranchLine, {
 } from './BranchLine'
 
 const HARD_BRANCH_CAP = 1000 // absolute safety ceiling on live strands
+const MAX_TICKS_PER_FRAME = 6 // catch-up cap so a stalled tab can't spiral
 const NODE_POS_CAP = 5000 // bound the parent-position cache for infinite runs
 const NODE_POS_TRIM = 2500 // entries kept after a trim
 
@@ -52,6 +53,9 @@ export default function VenationRenderer({ frontier }: Props) {
   // Scratch + smoothed window length for the per-frame trail-fade pass.
   const biasDir = useRef(new THREE.Vector3())
   const fadeWindow = useRef(1)
+
+  // Time accumulator that decouples growth speed from the frame rate.
+  const growthAcc = useRef(0)
 
   const registerHandle = useCallback((id: number, h: BranchLineHandle | null) => {
     if (h) {
@@ -126,13 +130,14 @@ export default function VenationRenderer({ frontier }: Props) {
     else branchTip.current.set(branchId, p.clone())
   }
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     const e = engineRef.current!
 
     // Respond to GUI edits (cheap version-counter checks).
     if (config.resetVersion !== lastReset.current) {
       lastReset.current = config.resetVersion
       resetAll()
+      growthAcc.current = 0
       return // start fresh next frame
     }
     if (config.visualVersion !== lastVisual.current) {
@@ -144,50 +149,71 @@ export default function VenationRenderer({ frontier }: Props) {
       for (const h of handles.current.values()) h.applyWidth()
     }
 
-    const { newNodes } = e.iterate()
+    // Growth runs on a time accumulator so its rate is decoupled from the frame
+    // rate: growthSpeed is "ticks per second", each tick advancing the sim by up
+    // to maxGrowthPerTick small nodes. Lowering it slows the flow without
+    // changing the step size, so the motion stays just as smooth.
+    growthAcc.current += Math.min(delta, 0.1) * config.growthSpeed
+    let steps = Math.floor(growthAcc.current)
+    growthAcc.current -= steps
+    if (steps > MAX_TICKS_PER_FRAME) steps = MAX_TICKS_PER_FRAME
 
-    // The engine already throttles itself to a few nodes per tick, so we
-    // consume every node it returns — dropping any here would desync the
-    // rendered strands from the engine's node graph.
     let added: BranchState[] | null = null
-    for (let i = 0; i < newNodes.length; i++) {
-      const n = newNodes[i]
-      nodePos.current.set(n.id, n.position)
+    for (let step = 0; step < steps; step++) {
+      const { newNodes } = e.iterate()
 
-      recent.current.push(n.position)
-      if (recent.current.length > 10) recent.current.shift()
+      // Consume every node the engine returns — dropping any would desync the
+      // rendered strands from the engine's node graph.
+      for (let i = 0; i < newNodes.length; i++) {
+        const n = newNodes[i]
+        nodePos.current.set(n.id, n.position)
 
-      const parentBranch = tipToBranch.current.get(n.parentId!)
-      const canContinue =
-        parentBranch !== undefined &&
-        (branchPoints.current.get(parentBranch) ?? 0) < MAX_POINTS_PER_BRANCH
+        recent.current.push(n.position)
+        if (recent.current.length > 10) recent.current.shift()
 
-      if (canContinue) {
-        // Continue the parent strand and move its tip marker to this node.
-        appendToBranch(parentBranch!, n.position)
-        tipToBranch.current.delete(n.parentId!)
-        tipToBranch.current.set(n.id, parentBranch!)
-      } else {
-        // Fork, root growth, or a full strand → start a new strand at the
-        // parent so the fork point is shared visually.
-        const parentPos = nodePos.current.get(n.parentId!) ?? n.position
-        const id = nextBranchId.current++
-        branchPoints.current.set(id, 2)
-        branchTip.current.set(id, n.position.clone())
-        tipToBranch.current.set(n.id, id)
-        const state: BranchState = {
-          id,
-          initialPoints: [
-            parentPos.x,
-            parentPos.y,
-            parentPos.z,
-            n.position.x,
-            n.position.y,
-            n.position.z,
-          ],
+        const parentBranch = tipToBranch.current.get(n.parentId!)
+        const canContinue =
+          parentBranch !== undefined &&
+          (branchPoints.current.get(parentBranch) ?? 0) < MAX_POINTS_PER_BRANCH
+
+        if (canContinue) {
+          // Continue the parent strand and move its tip marker to this node.
+          appendToBranch(parentBranch!, n.position)
+          tipToBranch.current.delete(n.parentId!)
+          tipToBranch.current.set(n.id, parentBranch!)
+        } else {
+          // Fork, root growth, or a full strand → start a new strand at the
+          // parent so the fork point is shared visually.
+          const parentPos = nodePos.current.get(n.parentId!) ?? n.position
+          const id = nextBranchId.current++
+          branchPoints.current.set(id, 2)
+          branchTip.current.set(id, n.position.clone())
+          tipToBranch.current.set(n.id, id)
+          const state: BranchState = {
+            id,
+            initialPoints: [
+              parentPos.x,
+              parentPos.y,
+              parentPos.z,
+              n.position.x,
+              n.position.y,
+              n.position.z,
+            ],
+          }
+          ;(added ??= []).push(state)
         }
-        ;(added ??= []).push(state)
       }
+
+      // Frontier = centroid of the most recently added nodes.
+      if (recent.current.length > 0) {
+        const c = frontier.current.set(0, 0, 0)
+        for (const v of recent.current) c.add(v)
+        c.multiplyScalar(1 / recent.current.length)
+      }
+
+      // Cull-behind + spawn-ahead keeps the attractor cloud marching with the
+      // frontier (self-regulates via the maxAttractors target).
+      e.replenishAttractors(frontier.current)
     }
 
     // Bound the parent-position cache. Fork seeds only ever reference very
@@ -200,17 +226,6 @@ export default function VenationRenderer({ frontier }: Props) {
         if (k !== undefined) nodePos.current.delete(k)
       }
     }
-
-    // Frontier = centroid of the most recently added nodes.
-    if (recent.current.length > 0) {
-      const c = frontier.current.set(0, 0, 0)
-      for (const v of recent.current) c.add(v)
-      c.multiplyScalar(1 / recent.current.length)
-    }
-
-    // Cull-behind + spawn-ahead every frame keeps the attractor cloud marching
-    // with the frontier (the call self-regulates via the maxAttractors target).
-    e.replenishAttractors(frontier.current)
 
     // Trail fade: dim each strand toward black by how far it sits behind the
     // front along the bias direction, so only the leading edge glows. The fade

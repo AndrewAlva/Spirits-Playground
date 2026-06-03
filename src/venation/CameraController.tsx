@@ -18,7 +18,11 @@ export default function CameraController({ frontier }: Props) {
     const f = frontier.current
     const posLerp = config.cameraPositionLerp
     const lookLerp = config.cameraLookLerp
-    desired.current.set(f.x, f.y, f.z + config.cameraOffsetZ)
+    desired.current.set(
+      f.x + config.cameraOffsetX,
+      f.y + config.cameraOffsetY,
+      f.z + config.cameraOffsetZ,
+    )
 
     camera.position.x = THREE.MathUtils.lerp(camera.position.x, desired.current.x, posLerp)
     camera.position.y = THREE.MathUtils.lerp(camera.position.y, desired.current.y, posLerp)

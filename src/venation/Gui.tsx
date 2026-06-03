@@ -23,6 +23,13 @@ export default function Gui() {
 
   // ── Growth ────────────────────────────────────────────────────────────────
   useControls('Growth', {
+    growthSpeed: {
+      value: DEFAULT_CONFIG.growthSpeed,
+      min: 1,
+      max: 120,
+      step: 1,
+      onChange: (v: number) => (config.growthSpeed = v),
+    },
     influenceRadius: {
       value: DEFAULT_CONFIG.influenceRadius,
       min: 0.05,
@@ -294,10 +301,24 @@ export default function Gui() {
       step: 0.001,
       onChange: (v: number) => (config.cameraLookLerp = v),
     },
+    cameraOffsetX: {
+      value: DEFAULT_CONFIG.cameraOffsetX,
+      min: -10,
+      max: 10,
+      step: 0.1,
+      onChange: (v: number) => (config.cameraOffsetX = v),
+    },
+    cameraOffsetY: {
+      value: DEFAULT_CONFIG.cameraOffsetY,
+      min: -10,
+      max: 10,
+      step: 0.1,
+      onChange: (v: number) => (config.cameraOffsetY = v),
+    },
     cameraOffsetZ: {
       value: DEFAULT_CONFIG.cameraOffsetZ,
-      min: 0.5,
-      max: 8,
+      min: -10,
+      max: 10,
       step: 0.1,
       onChange: (v: number) => (config.cameraOffsetZ = v),
     },
