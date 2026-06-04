@@ -47,7 +47,7 @@ export class PulseMeshLineMaterial extends MeshLineMaterial {
           'float _ph = fract(vCounters * uPulseCount - uTime * uPulseSpeed * uPulseDirection);',
           'float _d = min(_ph, 1.0 - _ph);',
           'float _pulse = smoothstep(uPulseWidth, 0.0, _d);',
-          'gl_FragColor = diffuseColor + uPulseColor * _pulse * uPulseIntensity * uFade;',
+          'gl_FragColor = diffuseColor + vec4(uPulseColor * (_pulse * uPulseIntensity * uFade), 0.0);',
         ].join('\n'),
       )
 
