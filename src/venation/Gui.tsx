@@ -411,6 +411,15 @@ export default function Gui() {
       step: 0.01,
       onChange: (v: number) => (config.pulseWidth = v),
     },
+    pulseColor: {
+      value: DEFAULT_CONFIG.pulseColor,
+      onChange: (v: string) => (config.pulseColor = v),
+    },
+    pulseDirection: {
+      value: DEFAULT_CONFIG.pulseDirection,
+      options: { 'Toward tips': 1, 'Toward roots': -1 },
+      onChange: (v: number) => (config.pulseDirection = v),
+    },
   })
 
   // ── Color journey ────────────────────────────────────────────────────────────
@@ -449,6 +458,34 @@ export default function Gui() {
       max: 0.5,
       step: 0.01,
       onChange: (v: number) => (config.motesDrift = v),
+    },
+    motesColor1: {
+      value: DEFAULT_CONFIG.motesColors[0],
+      onChange: (v: string) => {
+        config.motesColors[0] = v
+        config.motesVersion++
+      },
+    },
+    motesColor2: {
+      value: DEFAULT_CONFIG.motesColors[1],
+      onChange: (v: string) => {
+        config.motesColors[1] = v
+        config.motesVersion++
+      },
+    },
+    motesColor3: {
+      value: DEFAULT_CONFIG.motesColors[2],
+      onChange: (v: string) => {
+        config.motesColors[2] = v
+        config.motesVersion++
+      },
+    },
+    motesColor4: {
+      value: DEFAULT_CONFIG.motesColors[3],
+      onChange: (v: string) => {
+        config.motesColors[3] = v
+        config.motesVersion++
+      },
     },
   })
 

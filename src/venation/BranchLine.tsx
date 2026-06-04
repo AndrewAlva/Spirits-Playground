@@ -119,6 +119,7 @@ function BranchLineImpl(
     }
     g[0].multiplyScalar(fade)
     g[1].multiplyScalar(fade)
+    m.uniforms.uFade.value = fade // colored pulses dim with the trail too
     m.useGradient = 1
   }
 

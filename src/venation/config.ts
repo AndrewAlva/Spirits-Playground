@@ -81,6 +81,8 @@ export interface VenationConfig extends EngineParams {
   pulseSpeed: number // pulses per second along a strand
   pulseWidth: number // pulse half-width in counter units (0..1)
   pulseCount: number // number of pulses spaced along a strand
+  pulseColor: string // pulse tint (multiplied by pulseIntensity for HDR)
+  pulseDirection: number // +1 = toward tips, -1 = toward roots
 
   // Hue shift over the trail: front hue rotates as strands age toward black.
   hueShift: number // hue turns added from front (0) to fully aged (1)
@@ -89,6 +91,8 @@ export interface VenationConfig extends EngineParams {
   motesOpacity: number // 0 = off
   motesSize: number
   motesDrift: number // slow drift speed
+  motesColors: [string, string, string, string] // palette; each mote picks one
+  motesVersion: number // bumped when the palette changes (triggers recolor)
 
   // Monotonic counters so imperative consumers can cheaply detect GUI edits.
   visualVersion: number // colors / blending changed
@@ -153,12 +157,16 @@ export const DEFAULT_CONFIG: VenationConfig = {
   pulseSpeed: 0.5,
   pulseWidth: 0.12,
   pulseCount: 2,
+  pulseColor: '#ffffff',
+  pulseDirection: 1,
 
   hueShift: 0.15,
 
   motesOpacity: 0.5,
   motesSize: 0.025,
   motesDrift: 0.05,
+  motesColors: ['#8fffe6', '#aef0ff', '#ffd9a0', '#ffffff'],
+  motesVersion: 0,
 
   visualVersion: 1,
   widthVersion: 0,
@@ -166,4 +174,8 @@ export const DEFAULT_CONFIG: VenationConfig = {
 }
 
 /** The live, mutable configuration read across the experiment. */
-export const config: VenationConfig = { ...DEFAULT_CONFIG }
+export const config: VenationConfig = {
+  ...DEFAULT_CONFIG,
+  // Own copy of nested objects so live edits don't mutate DEFAULT_CONFIG.
+  motesColors: [...DEFAULT_CONFIG.motesColors] as [string, string, string, string],
+}
