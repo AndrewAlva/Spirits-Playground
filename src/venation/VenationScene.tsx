@@ -17,10 +17,12 @@ import { updatePulseUniforms } from './PulseMeshLineMaterial'
 function PostFx() {
   const bloomRef = useRef<BloomEffect | null>(null)
   const gl = useThree((s) => s.gl)
+  const elapsed = useRef(0) // own clock, accumulated from frame delta
 
-  useFrame((state) => {
+  useFrame((_, delta) => {
     gl.toneMappingExposure = config.toneMappingExposure
-    updatePulseUniforms(state.clock.elapsedTime, config)
+    elapsed.current += delta
+    updatePulseUniforms(elapsed.current, config)
     const bloom = bloomRef.current
     if (bloom) {
       bloom.intensity = config.bloomIntensity
