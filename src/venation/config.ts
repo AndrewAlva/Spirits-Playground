@@ -133,13 +133,13 @@ export const DEFAULT_CONFIG: VenationConfig = {
   rootWidth: 0.05,
   additiveBlending: true,
 
-  growthSpeed: 36, // ticks/sec (≈ half the previous fixed 60/frame rate)
+  growthSpeed: 16, // ticks/sec (≈ half the previous fixed 60/frame rate)
 
   cameraPositionLerp: 0.05, // fast enough to keep the descending front framed
   cameraLookLerp: 0.08,
   cameraOffsetX: 0,
-  cameraOffsetY: -2.6,
-  cameraOffsetZ: 1.5, // zoomed out enough to see the widening curtain + fade
+  cameraOffsetY: -1.4,
+  cameraOffsetZ: 0.5, // zoomed out enough to see the widening curtain + fade
 
   bloomIntensity: 4.55,
   luminanceThreshold: 0.19,
@@ -149,23 +149,23 @@ export const DEFAULT_CONFIG: VenationConfig = {
   maxBranches: 50,
   fadeStartFraction: 0.01,
 
-  depthLayers: 3,
-  layerSpacing: 0.4,
-  layerJumpChance: 0.25,
+  depthLayers: 1,
+  layerSpacing: 0.2,
+  layerJumpChance: 0.04,
 
-  pulseIntensity: 1.5,
-  pulseSpeed: 0.5,
-  pulseWidth: 0.12,
-  pulseCount: 2,
-  pulseColor: '#ffffff',
+  pulseIntensity: 1.6,
+  pulseSpeed: 0.25,
+  pulseCount: 0.5,
+  pulseWidth: 0.22,
+  pulseColor: '#c1b393',
   pulseDirection: 1,
 
-  hueShift: 0.15,
+  hueShift: -0.01,
 
-  motesOpacity: 0.5,
-  motesSize: 0.025,
-  motesDrift: 0.05,
-  motesColors: ['#8fffe6', '#aef0ff', '#ffd9a0', '#ffffff'],
+  motesOpacity: 1.0,
+  motesSize: 0.04,
+  motesDrift: 0.35,
+  motesColors: ['#6b2e00', '#ff9e00', '#ffefad', '#ffffff'],
   motesVersion: 0,
 
   visualVersion: 1,
