@@ -487,6 +487,20 @@ export default function Gui() {
         config.motesVersion++
       },
     },
+    motesTrailLength: {
+      value: DEFAULT_CONFIG.motesTrailLength,
+      min: 0,
+      max: 40,
+      step: 1,
+      onChange: (v: number) => (config.motesTrailLength = v),
+    },
+    motesSwirl: {
+      value: DEFAULT_CONFIG.motesSwirl,
+      min: 0,
+      max: 3,
+      step: 0.05,
+      onChange: (v: number) => (config.motesSwirl = v),
+    },
   })
 
   // Single Leva panel; hidden unless `?gui` is present.
