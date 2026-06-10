@@ -166,11 +166,11 @@ export const DEFAULT_CONFIG: VenationConfig = {
 
   motesOpacity: 1.0,
   motesSize: 0.04,
-  motesDrift: 0.35,
+  motesDrift: 0.17,
   motesColors: ['#6b2e00', '#ff9e00', '#ffefad', '#ffffff'],
   motesVersion: 0,
-  motesTrailLength: 12,
-  motesSwirl: 0.5,
+  motesTrailLength: 112,
+  motesSwirl: 15.3,
 
   visualVersion: 1,
   widthVersion: 0,

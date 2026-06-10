@@ -7,7 +7,7 @@ const COUNT = 300 // fixed pool of motes
 const FIELD = new THREE.Vector3(14, 14, 6) // box (full extents) around the front
 const SCALE_MIN = 0.4 // per-mote size multiplier range (size variation)
 const SCALE_MAX = 1.5
-const MAX_TRAIL = 40 // ring-buffer capacity per mote (cap on trail length)
+const MAX_TRAIL = 200 // ring-buffer capacity per mote (cap on trail length)
 const TAIL_SCALE = 0.12 // trail tapers from full size at the head to this at the tail
 
 /** Soft radial-gradient sprite so points render as round, glowing dots. */

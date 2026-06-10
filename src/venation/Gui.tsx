@@ -490,15 +490,15 @@ export default function Gui() {
     motesTrailLength: {
       value: DEFAULT_CONFIG.motesTrailLength,
       min: 0,
-      max: 40,
+      max: 200,
       step: 1,
       onChange: (v: number) => (config.motesTrailLength = v),
     },
     motesSwirl: {
       value: DEFAULT_CONFIG.motesSwirl,
       min: 0,
-      max: 3,
-      step: 0.05,
+      max: 50,
+      step: 0.01,
       onChange: (v: number) => (config.motesSwirl = v),
     },
   })
