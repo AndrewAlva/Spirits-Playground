@@ -560,5 +560,5 @@ export default function Gui() {
   })
 
   // Single Leva panel; hidden unless `?gui` is present.
-  return <Leva collapsed hidden={!visible} titleBar={{ title: 'Venation' }} />
+  return <Leva collapsed theme={{ sizes: { rootWidth: '340px' } }} hidden={!visible} titleBar={{ title: 'Venation' }} />
 }
