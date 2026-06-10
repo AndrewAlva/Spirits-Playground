@@ -95,6 +95,8 @@ export interface VenationConfig extends EngineParams {
   motesVersion: number // bumped when the palette changes (triggers recolor)
   motesTrailLength: number // points in each mote's fading trail (≤2 = no trail)
   motesSwirl: number // curliness of mote motion (0 = straight drift)
+  motesCount: number // how many motes are alive at once
+  motesFadeSpeed: number // life lost per second; a mote fades out then respawns
 
   // Monotonic counters so imperative consumers can cheaply detect GUI edits.
   visualVersion: number // colors / blending changed
@@ -171,6 +173,8 @@ export const DEFAULT_CONFIG: VenationConfig = {
   motesVersion: 0,
   motesTrailLength: 112,
   motesSwirl: 15.3,
+  motesCount: 300,
+  motesFadeSpeed: 0.15,
 
   visualVersion: 1,
   widthVersion: 0,

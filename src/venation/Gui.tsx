@@ -501,6 +501,20 @@ export default function Gui() {
       step: 0.01,
       onChange: (v: number) => (config.motesSwirl = v),
     },
+    motesCount: {
+      value: DEFAULT_CONFIG.motesCount,
+      min: 0,
+      max: 600,
+      step: 1,
+      onChange: (v: number) => (config.motesCount = v),
+    },
+    motesFadeSpeed: {
+      value: DEFAULT_CONFIG.motesFadeSpeed,
+      min: 0.01,
+      max: 2,
+      step: 0.01,
+      onChange: (v: number) => (config.motesFadeSpeed = v),
+    },
   })
 
   // Single Leva panel; hidden unless `?gui` is present.

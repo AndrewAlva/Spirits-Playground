@@ -3,12 +3,13 @@ import * as THREE from 'three'
 import { useFrame } from '@react-three/fiber'
 import { config } from './config'
 
-const COUNT = 300 // fixed pool of motes
+const MAX_MOTES = 600 // pool capacity (motesCount selects how many are live)
 const FIELD = new THREE.Vector3(14, 14, 6) // box (full extents) around the front
 const SCALE_MIN = 0.4 // per-mote size multiplier range (size variation)
 const SCALE_MAX = 1.5
 const MAX_TRAIL = 200 // ring-buffer capacity per mote (cap on trail length)
 const TAIL_SCALE = 0.12 // trail tapers from full size at the head to this at the tail
+const FADE_IN = 0.12 // fraction of life spent fading in (avoids birth pop)
 
 /** Soft radial-gradient sprite so points render as round, glowing dots. */
 function makeCircleTexture(): THREE.Texture {
@@ -30,13 +31,13 @@ function makeCircleTexture(): THREE.Texture {
 /**
  * Faint drifting motes in the void. Each mote picks one of four palette colours
  * and flows along the same downward growth current as the veins (bias direction
- * + a little swirl), trailing a short fading curve. The mote and its trail are
- * one round-sprite point cloud whose size tapers (full at the mote → a point at
- * the tail) and whose colour fades to nothing — additive, so it glows under
- * bloom and reads as a soft tapering ribbon. One draw call for everything.
+ * + swirl), trailing a tapering fading curve. The mote + its trail are one
+ * round-sprite point cloud whose size tapers (full at the mote → a point at the
+ * tail) and whose colour fades to nothing — additive, so it glows under bloom.
  *
- * The field follows the growth frontier and wraps motes that leave the box; on
- * wrap a mote's whole trail history shifts with it so the curve stays continuous.
+ * Each mote also has a lifetime: it fades in, lives, fades out, then dies and
+ * respawns elsewhere (motesFadeSpeed = life lost per second). `motesCount`
+ * selects how many of the pooled motes are live at once.
  */
 export default function Motes({
   frontier,
@@ -46,17 +47,19 @@ export default function Motes({
   const matRef = useRef<THREE.PointsMaterial>(null!)
   const elapsed = useRef(0)
   const head = useRef(0) // shared ring-buffer write index
+  const prevActive = useRef(MAX_MOTES) // last live count (detect newly-activated)
 
   const circleTex = useMemo(makeCircleTexture, [])
 
   const data = useMemo(() => {
-    const motePos = new Float32Array(COUNT * 3) // current mote positions
-    const drift = new Float32Array(COUNT * 3) // per-mote random spread velocity
-    const phase = new Float32Array(COUNT)
-    const baseScale = new Float32Array(COUNT)
-    const colorIndex = new Uint8Array(COUNT)
-    const history = new Float32Array(COUNT * MAX_TRAIL * 3)
-    for (let i = 0; i < COUNT; i++) {
+    const motePos = new Float32Array(MAX_MOTES * 3) // current mote positions
+    const drift = new Float32Array(MAX_MOTES * 3) // per-mote random spread velocity
+    const phase = new Float32Array(MAX_MOTES)
+    const baseScale = new Float32Array(MAX_MOTES)
+    const colorIndex = new Uint8Array(MAX_MOTES)
+    const life = new Float32Array(MAX_MOTES) // 1 at birth → 0 at death
+    const history = new Float32Array(MAX_MOTES * MAX_TRAIL * 3)
+    for (let i = 0; i < MAX_MOTES; i++) {
       const x = (Math.random() - 0.5) * FIELD.x
       const y = (Math.random() - 0.5) * FIELD.y
       const z = (Math.random() - 0.5) * FIELD.z
@@ -69,6 +72,7 @@ export default function Motes({
       phase[i] = Math.random() * Math.PI * 2
       baseScale[i] = SCALE_MIN + Math.random() * (SCALE_MAX - SCALE_MIN)
       colorIndex[i] = Math.floor(Math.random() * 4)
+      life[i] = Math.random() * 0.8 + 0.2 // staggered ages so they don't sync
       for (let k = 0; k < MAX_TRAIL; k++) {
         const h = (i * MAX_TRAIL + k) * 3
         history[h] = x
@@ -76,11 +80,10 @@ export default function Motes({
         history[h + 2] = z
       }
     }
-    // Render buffers: head + trail points for every mote (one Points cloud).
-    const positions = new Float32Array(COUNT * MAX_TRAIL * 3)
-    const colors = new Float32Array(COUNT * MAX_TRAIL * 3)
-    const scales = new Float32Array(COUNT * MAX_TRAIL)
-    return { motePos, drift, phase, baseScale, colorIndex, history, positions, colors, scales }
+    const positions = new Float32Array(MAX_MOTES * MAX_TRAIL * 3)
+    const colors = new Float32Array(MAX_MOTES * MAX_TRAIL * 3)
+    const scales = new Float32Array(MAX_MOTES * MAX_TRAIL)
+    return { motePos, drift, phase, baseScale, colorIndex, life, history, positions, colors, scales }
   }, [])
 
   const geom = useMemo(() => {
@@ -121,7 +124,8 @@ export default function Motes({
     const f = frontier.current
     const d = Math.min(delta, 0.1) * config.motesDrift
     const swirl = config.motesSwirl
-    const { motePos, drift, phase, history } = data
+    const fadeSpeed = config.motesFadeSpeed
+    const { motePos, drift, phase, history, life } = data
 
     // Shared current = the growth bias direction (motes flow with the veins),
     // with an in-plane perpendicular axis for the swirl wander.
@@ -131,10 +135,39 @@ export default function Motes({
     const px = -bias.y
     const py = bias.x
 
+    const active = Math.max(0, Math.min(MAX_MOTES, Math.floor(config.motesCount)))
+
+    // (Re)spawn a mote near the current frontier with a fresh trail.
+    const respawn = (i: number, randomLife: boolean) => {
+      const ix = i * 3
+      motePos[ix] = f.x + (Math.random() - 0.5) * FIELD.x
+      motePos[ix + 1] = f.y + (Math.random() - 0.5) * FIELD.y
+      motePos[ix + 2] = f.z + (Math.random() - 0.5) * FIELD.z
+      drift[ix] = Math.random() - 0.5
+      drift[ix + 1] = Math.random() - 0.5
+      drift[ix + 2] = Math.random() - 0.5
+      phase[i] = Math.random() * Math.PI * 2
+      life[i] = randomLife ? Math.random() * 0.8 + 0.2 : 1
+      const hbase = i * MAX_TRAIL * 3
+      for (let k = 0; k < MAX_TRAIL; k++) {
+        history[hbase + k * 3] = motePos[ix]
+        history[hbase + k * 3 + 1] = motePos[ix + 1]
+        history[hbase + k * 3 + 2] = motePos[ix + 2]
+      }
+    }
+
+    // Motes newly brought into the live set (count increased) spawn near the front.
+    for (let i = prevActive.current; i < active; i++) respawn(i, true)
+    prevActive.current = active
+
     head.current = (head.current + 1) % MAX_TRAIL
     const hk = head.current
 
-    for (let i = 0; i < COUNT; i++) {
+    for (let i = 0; i < active; i++) {
+      // age + death/respawn
+      life[i] -= fadeSpeed * delta
+      if (life[i] <= 0) respawn(i, false)
+
       const ix = i * 3
       const s1 = Math.sin(motePos[ix + 1] * 0.6 + t * 0.5 + phase[i])
       const s2 = Math.cos(motePos[ix] * 0.6 + t * 0.4 + phase[i] * 1.3)
@@ -178,21 +211,26 @@ export default function Motes({
     for (let j = 0; j < 4; j++) palRGB[j].set(pal[j] ?? '#ffffff')
     const opacity = config.motesOpacity
 
-    // Fill the point cloud: head (k=0, full size/colour) → tail (tapered + faded).
+    // Fill the point cloud: head (k=0) → tail (tapered + faded), all scaled by
+    // the mote's life envelope (fade in → live → fade out).
     const L = Math.max(1, Math.min(MAX_TRAIL, Math.floor(config.motesTrailLength)))
     const denom = L > 1 ? L - 1 : 1
     const { positions, colors, scales, baseScale, colorIndex } = data
     let p = 0 // point write cursor (×3)
     let s = 0 // scale write cursor
-    for (let i = 0; i < COUNT; i++) {
+    for (let i = 0; i < active; i++) {
       const c = palRGB[colorIndex[i]]
       const hbase = i * MAX_TRAIL * 3
       const base = baseScale[i]
+      const lifeI = life[i]
+      const ageNorm = 1 - lifeI
+      const fadeIn = ageNorm < FADE_IN ? ageNorm / FADE_IN : 1
+      const moteBright = opacity * fadeIn * lifeI // life envelope
       for (let k = 0; k < L; k++) {
         const slot = (hk - k + MAX_TRAIL) % MAX_TRAIL
         const sBase = hbase + slot * 3
         const u = k / denom // 0 at head → 1 at tail
-        const fade = (1 - u) * opacity // colour intensity along the trail
+        const fade = (1 - u) * moteBright // trail fade × life envelope
         const taper = 1 - (1 - TAIL_SCALE) * u // size taper head → tail
 
         positions[p] = history[sBase]
@@ -206,7 +244,7 @@ export default function Motes({
         s += 1
       }
     }
-    geom.setDrawRange(0, COUNT * L)
+    geom.setDrawRange(0, active * L)
     geom.attributes.position.needsUpdate = true
     geom.attributes.color.needsUpdate = true
     geom.attributes.aScale.needsUpdate = true
