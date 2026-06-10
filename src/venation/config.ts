@@ -57,6 +57,14 @@ export interface VenationConfig extends EngineParams {
   cameraOffsetX: number
   cameraOffsetY: number
   cameraOffsetZ: number
+  // Push the look-at target away from the tip on each axis.
+  cameraLookAtX: number
+  cameraLookAtY: number
+  cameraLookAtZ: number
+  // Extra rotation (radians) applied on top of the look direction, per axis.
+  cameraRotX: number
+  cameraRotY: number
+  cameraRotZ: number
 
   // Bloom / tone mapping.
   bloomIntensity: number
@@ -144,6 +152,12 @@ export const DEFAULT_CONFIG: VenationConfig = {
   cameraOffsetX: 0,
   cameraOffsetY: -1.4,
   cameraOffsetZ: 0.5, // zoomed out enough to see the widening curtain + fade
+  cameraLookAtX: 0,
+  cameraLookAtY: 0,
+  cameraLookAtZ: 0,
+  cameraRotX: 0,
+  cameraRotY: 0,
+  cameraRotZ: 0,
 
   bloomIntensity: 4.55,
   luminanceThreshold: 0.19,

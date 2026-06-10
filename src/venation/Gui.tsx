@@ -322,6 +322,48 @@ export default function Gui() {
       step: 0.1,
       onChange: (v: number) => (config.cameraOffsetZ = v),
     },
+    cameraLookAtX: {
+      value: DEFAULT_CONFIG.cameraLookAtX,
+      min: -7,
+      max: 7,
+      step: 0.001,
+      onChange: (v: number) => (config.cameraLookAtX = v),
+    },
+    cameraLookAtY: {
+      value: DEFAULT_CONFIG.cameraLookAtY,
+      min: -7,
+      max: 7,
+      step: 0.001,
+      onChange: (v: number) => (config.cameraLookAtY = v),
+    },
+    cameraLookAtZ: {
+      value: DEFAULT_CONFIG.cameraLookAtZ,
+      min: -7,
+      max: 7,
+      step: 0.001,
+      onChange: (v: number) => (config.cameraLookAtZ = v),
+    },
+    cameraRotX: {
+      value: DEFAULT_CONFIG.cameraRotX,
+      min: -7,
+      max: 7,
+      step: 0.001,
+      onChange: (v: number) => (config.cameraRotX = v),
+    },
+    cameraRotY: {
+      value: DEFAULT_CONFIG.cameraRotY,
+      min: -7,
+      max: 7,
+      step: 0.001,
+      onChange: (v: number) => (config.cameraRotY = v),
+    },
+    cameraRotZ: {
+      value: DEFAULT_CONFIG.cameraRotZ,
+      min: -7,
+      max: 7,
+      step: 0.001,
+      onChange: (v: number) => (config.cameraRotZ = v),
+    },
   })
 
   // ── Bloom / Tone ────────────────────────────────────────────────────────────
