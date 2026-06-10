@@ -212,12 +212,13 @@ export default function Motes({
     const opacity = config.motesOpacity
 
     // Fill the point cloud: head (k=0) → tail (tapered + faded), all scaled by
-    // the mote's life envelope (fade in → live → fade out).
-    const L = Math.max(1, Math.min(MAX_TRAIL, Math.floor(config.motesTrailLength)))
-    const denom = L > 1 ? L - 1 : 1
+    // the mote's life envelope (fade in → live → ease-out-cubic fade out). The
+    // trail length also scales with life, so it retracts as the mote dies.
+    const Lmax = Math.max(1, Math.min(MAX_TRAIL, Math.floor(config.motesTrailLength)))
     const { positions, colors, scales, baseScale, colorIndex } = data
     let p = 0 // point write cursor (×3)
     let s = 0 // scale write cursor
+    let count = 0 // total points written (drawn)
     for (let i = 0; i < active; i++) {
       const c = palRGB[colorIndex[i]]
       const hbase = i * MAX_TRAIL * 3
@@ -225,8 +226,13 @@ export default function Motes({
       const lifeI = life[i]
       const ageNorm = 1 - lifeI
       const fadeIn = ageNorm < FADE_IN ? ageNorm / FADE_IN : 1
-      const moteBright = opacity * fadeIn * lifeI // life envelope
-      for (let k = 0; k < L; k++) {
+      const lo = 1 - lifeI
+      const easeOut = 1 - lo * lo * lo // ease-out-cubic fade out
+      const moteBright = opacity * fadeIn * easeOut
+      // trail length scales with life (retracts as the mote dies)
+      const Li = Math.max(1, Math.round(Lmax * lifeI))
+      const denom = Li > 1 ? Li - 1 : 1
+      for (let k = 0; k < Li; k++) {
         const slot = (hk - k + MAX_TRAIL) % MAX_TRAIL
         const sBase = hbase + slot * 3
         const u = k / denom // 0 at head → 1 at tail
@@ -242,9 +248,10 @@ export default function Motes({
         scales[s] = base * taper
         p += 3
         s += 1
+        count += 1
       }
     }
-    geom.setDrawRange(0, active * L)
+    geom.setDrawRange(0, count)
     geom.attributes.position.needsUpdate = true
     geom.attributes.color.needsUpdate = true
     geom.attributes.aScale.needsUpdate = true
