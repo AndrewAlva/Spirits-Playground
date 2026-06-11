@@ -20,18 +20,97 @@ npm run build    # type-check + production bundle
 ### Live controls — `?gui`
 
 Append `?gui` to the URL (e.g. `http://localhost:5173/?gui`) to reveal a
-[leva](https://github.com/pmndrs/leva) panel that tweaks the experiment on the
-fly: growth (speed, influence/kill radius, segment length, angle noise, Z
-wobble, nodes per tick), forking, attractors, direction/curtain, seeding (+ a
-**Reset** button), trail length/fade, vein colors/emissive/widths/blending,
-3-axis camera offset + drift, bloom/exposure, depth (layered planes), pulses
-(flowing vein energy), hue shift over the trail, and drifting motes. Without
-`?gui` the panel stays hidden.
-
+[leva](https://github.com/pmndrs/leva) panel. Without `?gui` it stays hidden.
 All controls write into a single live `config` singleton (`config.ts`) that the
 engine, camera, materials, and post-FX read each frame — no React re-renders on
 the hot path. Color/width edits and resets are picked up via version counters
 the renderer watches.
+
+The panel is organised into folders, matching `Gui.tsx`:
+
+#### Growth
+- **growthSpeed** — simulation ticks per second, decoupled from the frame rate. Lower = slower growth with the same smoothness.
+- **influenceRadius** — max distance at which an attractor can pull on a vein tip.
+- **killRadius** — distance at which a reached attractor is consumed and removed.
+- **segmentLength** — world-space length each vein step adds per tick.
+- **branchAngleNoise** — random angular jitter (radians) added to every growth step.
+- **zWobble** — max random out-of-plane (Z) displacement per step; keeps growth quasi-flat.
+- **maxGrowthPerTick** — max new vein nodes emitted per simulation tick.
+
+#### Forking
+- **forkSpread** — angular spread (radians) of the influencing attractors above which a tip may split in two.
+- **minForkAttractors** — minimum influencing attractors required before a fork is considered.
+- **forkProbability** — chance that an eligible tip actually forks.
+
+#### Attractors
+- **maxAttractors** — target size of the live attractor cloud the veins grow toward.
+- **replenishRadius** — radius over which fresh attractors are scattered ahead of the front.
+- **candidateLimit** — max recent tips examined per tick (performance bound on the search).
+
+#### Direction (tropism + curtain)
+- **biasStrength** — how strongly growth is pulled toward the bias direction (0 = pure space colonization, 1 = fully directional).
+- **biasX / biasY / biasZ** — the "current" direction vector growth flows along (default points down).
+- **replenishAhead** — how far ahead of the frontier (along the bias) new attractors are seeded.
+- **cullBehind** — distance behind the frontier past which attractors are abandoned (keeps the cloud marching).
+- **curtainSpread** — lateral half-width added per unit of descent (how much the curtain fans out).
+- **curtainMaxWidth** — clamp on the curtain's lateral half-width.
+
+#### Trail (vein fade)
+- **maxBranches** — live strand cap; effectively how long the glowing vein trail is before the oldest strands are evicted.
+- **fadeStartFraction** — fraction of the trailing window where vein dimming begins; strands reach black exactly as they're evicted.
+
+#### Seeding (applied on Reset)
+- **initialAttractors** — attractors scattered around the seed on reset.
+- **initialRadius** — disk radius of that initial scatter.
+- **planeZJitter** — out-of-plane spread of the initial attractors.
+- **Reset** — button; re-seeds growth from a single root using the current Seeding values.
+
+#### Veins
+- **tipColor** — hue of the growing tip.
+- **rootColor** — hue of the root end.
+- **tipEmissive** — HDR multiplier on the tip color (pushes it past 1.0 so Bloom catches it).
+- **tipWidth** — line width at the tip.
+- **rootWidth** — line width at the root.
+- **additiveBlending** — additive (glowing, overlaps brighten) vs normal blending for the veins.
+
+#### Camera
+- **cameraPositionLerp** — smoothing of the camera position as it follows the front (higher = snappier).
+- **cameraLookLerp** — smoothing of the look-at target as it follows the front.
+- **cameraOffsetX / Y / Z** — camera position offset from the branch tip (frontier), per axis.
+- **cameraLookAtX / Y / Z** — push the look-at target away from the tip, per axis (±7, 0.001 steps).
+- **cameraRotX / Y / Z** — extra rotation (radians) applied on top of the look direction, per axis (±7, 0.001 steps).
+
+#### Bloom
+- **bloomIntensity** — strength of the bloom glow.
+- **luminanceThreshold** — brightness above which pixels bloom.
+- **luminanceSmoothing** — softness of the threshold knee.
+- **toneMappingExposure** — ACES tone-mapping exposure (overall image brightness).
+
+#### Depth (layered planes)
+- **depthLayers** — number of discrete Z planes strands are distributed across (1 = flat).
+- **layerSpacing** — Z distance between adjacent planes (drives the parallax).
+- **layerJumpChance** — chance a newly-created strand hops to an adjacent plane instead of staying on its parent's.
+
+#### Pulses (vein energy)
+- **pulseIntensity** — HDR brightness of the pulses added along the veins (0 = off).
+- **pulseSpeed** — how fast pulses travel along a strand.
+- **pulseCount** — number of pulses spaced along each strand.
+- **pulseWidth** — width of each pulse band (in normalized along-strand units).
+- **pulseColor** — pulse tint (× intensity for HDR).
+- **pulseDirection** — travel direction: *Toward tips* or *Toward roots*.
+
+#### Hue
+- **hueShift** — hue rotation added across a vein's lifetime, from the front (0) to fully aged, before it fades to black.
+
+#### Motes (atmosphere)
+- **motesOpacity** — overall brightness of the motes and their trails (0 = off).
+- **motesSize** — base sprite size of a mote head.
+- **motesDrift** — overall speed of mote movement.
+- **motesColor1–4** — four-color palette; each mote randomly takes one (trail matches its mote).
+- **motesTrailLength** — max points in a mote's tapering, fading trail (0 = no trail). Scales down with a mote's life.
+- **motesSwirl** — curliness of mote motion (0 = straight along the current).
+- **motesCount** — how many motes are alive at once.
+- **motesFadeSpeed** — life lost per second: how fast a mote fades out (ease-out-cubic) and dies before respawning elsewhere.
 
 ### Layout
 
